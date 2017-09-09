@@ -1,0 +1,11 @@
+[package]
+name = "liblinkbot"
+version = "0.0.1"
+authors = ["David Ko <david@barobo.com>"]
+
+[dependencies]
+lazy_static = "*"
+log = "*"
+websocket = "*"
+linkbot-core = { path = "../linkbot-core" }
+colored_logger = "*"
