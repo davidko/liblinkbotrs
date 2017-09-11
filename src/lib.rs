@@ -115,6 +115,10 @@ mod tests {
             input.truncate(4);
             let mut l = Linkbot::new(input.as_str());
 
+            println!("Moving to zero...");
+            l.reset_to_zero().unwrap();
+            l.move_wait(0x07).unwrap();
+
             println!("Getting accelerometer data...");
             let acceldata = l.get_accelerometer_data().unwrap();
             println!("Accel data: {} {} {}", acceldata.0, acceldata.1, acceldata.2);

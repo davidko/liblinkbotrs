@@ -151,12 +151,41 @@ impl Linkbot {
         }
 
         // Set our "joints moving" indicator
-        {
-            let pair = self.joints_moving.clone();
-            let &(ref lock, _) = &*pair;
-            let mut joints_mask = lock.lock().unwrap();
-            *joints_mask |= mask;
+        self.set_joints_moving(mask);
+
+        // Send the message
+        let (tx, rx) = mpsc::channel::<()>();
+        self.inner.robot_move(goals[0].clone(), goals[1].clone(), goals[2].clone(), move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
+    pub fn move_motors_to(&mut self, 
+                mask: u8,
+                angle1: f32,
+                angle2: f32,
+                angle3: f32,
+                ) -> Result<(), String> {
+        let mut goal_template = lc::Goal::new();
+        goal_template.set_field_type( lc::Goal_Type::ABSOLUTE);
+        goal_template.set_controller( lc::Goal_Controller::CONSTVEL );
+
+        let angles = vec![angle1, angle2, angle3];
+        let mut goals = Vec::new();
+        for i in 0..3 {
+            let g = if (mask & (1<<i)) != 0 {
+                let mut g = goal_template.clone();
+                g.set_goal(angles[i]*PI/180.0);
+                Some(g)
+            } else {
+                None
+            };
+            goals.push(g);
         }
+
+        // Set our "joints moving" indicator
+        self.set_joints_moving(mask);
 
         // Send the message
         let (tx, rx) = mpsc::channel::<()>();
@@ -176,6 +205,20 @@ impl Linkbot {
             joints_mask = cvar.wait(joints_mask).unwrap();
         }
         Ok(())
+    }
+
+    pub fn reset_encoders(&mut self) -> Result<(), String> {
+        let (tx, rx) = mpsc::channel::<()>();
+        self.inner.reset_encoder_revs(move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
+    pub fn reset_to_zero(&mut self) -> Result<(), String> {
+        self.reset_encoders().and_then(|_| {
+            self.move_motors_to(0x07, 0.0, 0.0, 0.0)
+        })
     }
 
     pub fn set_joint_speeds(&mut self, 
@@ -218,6 +261,13 @@ impl Linkbot {
             tx.send(()).unwrap();
         }).unwrap();
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
+    fn set_joints_moving(&mut self, mask: u8) {
+        let pair = self.joints_moving.clone();
+        let &(ref lock, _) = &*pair;
+        let mut joints_mask = lock.lock().unwrap();
+        *joints_mask |= mask;
     }
 }
 
