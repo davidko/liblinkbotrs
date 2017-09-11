@@ -130,8 +130,9 @@ mod tests {
             io::stdin().read_line(&mut input);
 
             println!("Testing motors. Moving motors 1, 2, and 3 90, 180, and 360 degrees, respectively...");
-            l.move_motors(0x07, 90.0, 180.0, 360.0);
-            l.move_wait(0x07);
+            l.set_joint_speeds(0x07, 90.0, 90.0, 90.0).unwrap();
+            l.move_motors(0x07, 90.0, 180.0, 360.0).unwrap();
+            l.move_wait(0x07).unwrap();
             println!("Test complete.");
 
             println!("Getting joint angles:");
@@ -154,6 +155,12 @@ mod tests {
             } else {
                 panic!("Could not get joint speeds.");
             }
+
+            println!("Setting joint speeds to 180...");
+            l.set_joint_speeds(0x07, 180.0, 180.0, 180.0).unwrap();
+            l.move_motors(0x07, 180.0, 180.0, 180.0).unwrap();
+            l.move_wait(0x07).unwrap();
+            l.set_joint_speeds(0x07, 90.0, 90.0, 90.0).unwrap();
         }
         
     }

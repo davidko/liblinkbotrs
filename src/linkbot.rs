@@ -183,10 +183,13 @@ impl Linkbot {
                             speed1: f32, 
                             speed2: f32, 
                             speed3: f32) -> Result<(), String> {
+        let degrees = vec![speed1, speed2, speed3].iter().map(|s| {
+            s*PI/180.0
+        }).collect();
         let (tx, rx) = mpsc::channel::<()>();
         self.inner.set_motor_controller_omega(
             mask,
-            vec![speed1, speed2, speed3], 
+            degrees, 
             move || {
                 tx.send(()).unwrap();
             }).unwrap();
