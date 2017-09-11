@@ -133,6 +133,27 @@ mod tests {
             l.move_motors(0x07, 90.0, 180.0, 360.0);
             l.move_wait(0x07);
             println!("Test complete.");
+
+            println!("Getting joint angles:");
+            if let Ok(angles) = l.get_joint_angles() {
+                println!("{} {} {}", angles.0, angles.1, angles.2);
+            } else {
+                panic!("Could not get joint angles.");
+            }
+
+            println!("Getting LED color:");
+            if let Ok(color) = l.get_led_color() {
+                println!("{} {} {}", color.0, color.1, color.2);
+            } else {
+                panic!("Could not get led color."); 
+            }
+
+            println!("Getting joint speeds:");
+            if let Ok(speeds) = l.get_joint_speeds() {
+                println!("{} {} {}", speeds.0, speeds.1, speeds.2);
+            } else {
+                panic!("Could not get joint speeds.");
+            }
         }
         
     }

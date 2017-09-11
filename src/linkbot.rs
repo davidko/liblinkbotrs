@@ -101,6 +101,32 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
+    pub fn get_joint_angles(&mut self) -> Result<(f32, f32, f32), String> {
+        let (tx, rx) = mpsc::channel::<(f32, f32, f32)>();
+        self.inner.get_encoder_values(move |_, angles| {
+            let degrees = angles.iter().map(|&x| x*180.0/PI).collect::<Vec<_>>();
+            tx.send((degrees[0], degrees[1], degrees[2])).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
+    pub fn get_led_color(&mut self) -> Result<(u8, u8, u8), String> {
+        let (tx, rx) = mpsc::channel::<(u8, u8, u8)>();
+        self.inner.get_led_color(move |r, g, b| {
+            tx.send((r, g, b)).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
+    pub fn get_joint_speeds(&mut self) -> Result<(f32, f32, f32), String> {
+        let (tx, rx) = mpsc::channel::<(f32, f32, f32)>();
+        self.inner.get_motor_controller_omega(move |omegas| {
+            let degrees = omegas.iter().map(|&x| x*180.0/PI).collect::<Vec<_>>();
+            tx.send((degrees[0], degrees[1], degrees[2])).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
     pub fn move_motors(&mut self, 
                 mask: u8,
                 angle1: f32,
@@ -150,6 +176,21 @@ impl Linkbot {
             joints_mask = cvar.wait(joints_mask).unwrap();
         }
         Ok(())
+    }
+
+    pub fn set_joint_speeds(&mut self, 
+                            mask: u32, 
+                            speed1: f32, 
+                            speed2: f32, 
+                            speed3: f32) -> Result<(), String> {
+        let (tx, rx) = mpsc::channel::<()>();
+        self.inner.set_motor_controller_omega(
+            mask,
+            vec![speed1, speed2, speed3], 
+            move || {
+                tx.send(()).unwrap();
+            }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
     pub fn set_led_color(&mut self, red: u8, green: u8, blue: u8) -> Result<(), String> {
