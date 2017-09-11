@@ -4,9 +4,9 @@ extern crate linkbot_core as lc;
 extern crate websocket as ws;
 
 use std::env;
+use std::f32::consts::PI;
 use std::thread;
 use std::sync::{Arc, Condvar, Mutex, mpsc};
-use std::sync::mpsc::sync_channel;
 use std::time::Duration;
 
 use ws::{Message};
@@ -85,6 +85,8 @@ fn init_daemon(daemon: &Mutex<lc::DaemonProxy>) {
 pub struct Linkbot {
     inner: lc::Robot,
     timeout: Duration,
+    joints_moving: Arc< ( Mutex<u8>, Condvar ) >, // mask
+    motor_mask: u8, // 0x05 for Linkbot-I, 0x03 for Linkbot-L
 }
 
 impl Linkbot {
@@ -92,7 +94,7 @@ impl Linkbot {
         let pair = Arc::new( ( Mutex::new(false), Condvar::new() ) );
         let pair2 = pair.clone();
         let global_daemon = &DAEMON;
-        let robot = match global_daemon.try_lock() {
+        let mut robot = match global_daemon.try_lock() {
             Ok(mut daemon) => {
                 let mut inner = daemon.get_robot(serial_id);
                 info!("Setting connect event handler...");
@@ -107,10 +109,12 @@ impl Linkbot {
                 info!("Setting connect event handler...done");
                 // Send the connect signal
                 info!("Sending connect signal...");
-                daemon.connect_robot(serial_id);
+                daemon.connect_robot(serial_id).unwrap();
                 info!("Sending connect signal...done");
                 Linkbot{ inner: inner,
                          timeout: Duration::from_secs(8),
+                         joints_moving: Arc::new( ( Mutex::new(0), Condvar::new() ) ),
+                         motor_mask: 0,
                 }
             }
             _ => {
@@ -126,27 +130,108 @@ impl Linkbot {
             started = cvar.wait(started).unwrap();
         }
         info!("Waiting for robot connectEvent...done");
+
+        // Enable the robot joint events
+        let joints_moving_pair = robot.joints_moving.clone();
+        robot.inner.set_joint_event_handler(move |_, joint, event, _| {
+            if (event == lc::JointState::COAST) ||
+               (event == lc::JointState::HOLD) {
+                   let &(ref lock, ref cvar) = &*joints_moving_pair;
+                   let mut mask = lock.lock().unwrap();
+                   *mask &= !(1<<joint);
+                   cvar.notify_all();
+            }
+        });
+        let (tx, rx) = mpsc::channel::<()>();
+        robot.inner.enable_joint_event(true, move|| {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(robot.timeout).unwrap();
+
+        if let Ok(form) = robot.get_form_factor() {
+            robot.motor_mask = match form {
+                lc::FormFactor::I => 0x05,
+                lc::FormFactor::L => 0x03,
+                lc::FormFactor::T => 0x07,
+                _ => 0x00,
+            }
+        }
+
         robot
-        /*
-        let mut daemon = global_daemon.lock().unwrap();
-        let inner = daemon.get_robot(serial_id);
-        Linkbot{inner: inner}
-        */
     }
 
     pub fn get_accelerometer_data(&mut self) -> Result<(f32, f32, f32), String> {
         let (tx, rx) = mpsc::channel::<(f32, f32, f32)>();
         self.inner.get_accelerometer_data(move |x, y, z| {
             tx.send((x, y, z)).unwrap();
-        });
+        }).unwrap();
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
+    pub fn get_form_factor(&mut self) -> Result<lc::FormFactor, String> {
+        let (tx, rx) = mpsc::channel::<lc::FormFactor>();
+        self.inner.get_form_factor(move |f| {
+            tx.send(f).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
+    pub fn move_motors(&mut self, 
+                mask: u8,
+                angle1: f32,
+                angle2: f32,
+                angle3: f32,
+                ) -> Result<(), String> {
+        let mut goal_template = lc::Goal::new();
+        goal_template.set_field_type( lc::Goal_Type::RELATIVE );
+        goal_template.set_controller( lc::Goal_Controller::CONSTVEL );
+
+        let angles = vec![angle1, angle2, angle3];
+        let mut goals = Vec::new();
+        for i in 0..3 {
+            let g = if (mask & (1<<i)) != 0 {
+                let mut g = goal_template.clone();
+                g.set_goal(angles[i]*PI/180.0);
+                Some(g)
+            } else {
+                None
+            };
+            goals.push(g);
+        }
+
+        // Set our "joints moving" indicator
+        {
+            let pair = self.joints_moving.clone();
+            let &(ref lock, _) = &*pair;
+            let mut joints_mask = lock.lock().unwrap();
+            *joints_mask |= mask;
+        }
+
+        // Send the message
+        let (tx, rx) = mpsc::channel::<()>();
+        self.inner.robot_move(goals[0].clone(), goals[1].clone(), goals[2].clone(), move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
+    pub fn move_wait(&mut self, mask: u8) -> Result<(), String> {
+        //! The mask indicates which motors to wait for.
+
+        let pair = self.joints_moving.clone();
+        let &(ref lock, ref cvar) = &*pair;
+        let mut joints_mask = lock.lock().unwrap();
+        while (*joints_mask & mask & self.motor_mask) != 0 {
+            joints_mask = cvar.wait(joints_mask).unwrap();
+        }
+        Ok(())
     }
 
     pub fn set_led_color(&mut self, red: u8, green: u8, blue: u8) -> Result<(), String> {
         let (tx, rx) = mpsc::channel::<()>();
         self.inner.set_led_color(red, green, blue, move || {
             tx.send(()).unwrap();
-        });
+        }).unwrap();
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
@@ -165,7 +250,6 @@ impl Linkbot {
         }).unwrap();
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
-
 }
 
 /*
@@ -212,6 +296,10 @@ mod tests {
             };
             l.enable_button_event(Some( Box::new( button_handler ) ) ).unwrap();
             io::stdin().read_line(&mut input);
+
+            println!("Testing motors. Moving motors 1, 2, and 3 90, 180, and 360 degrees, respectively...");
+            l.move_motors(0x07, 90.0, 180.0, 360.0);
+            l.move_wait(0x07);
             println!("Test complete.");
         }
         
