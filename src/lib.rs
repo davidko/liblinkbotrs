@@ -167,6 +167,7 @@ mod tests {
             l.move_motors(0x07, 180.0, 180.0, 180.0).unwrap();
             l.move_wait(0x07).unwrap();
             l.set_joint_speeds(0x07, 90.0, 90.0, 90.0).unwrap();
+            l.stop(0x07).unwrap();
         }
         
     }

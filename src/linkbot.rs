@@ -255,6 +255,14 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
+    pub fn stop(&mut self, mask: u32) -> Result<(), String> {
+        let (tx, rx) = mpsc::channel::<()>();
+        self.inner.stop(Some(mask), move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
     pub fn enable_button_event(&mut self, handler: Option<Box<lc::ButtonEventHandler>> ) -> Result<(), String> 
     {
         let (tx, rx) = mpsc::channel::<()>();
