@@ -133,10 +133,12 @@ mod tests {
             l.enable_button_event(Some( Box::new( button_handler ) ) ).unwrap();
             io::stdin().read_line(&mut input);
 
-            println!("Testing motors. Moving motors 1, 2, and 3 90, 180, and 360 degrees, respectively...");
+            println!("Testing motors and buzzer. Moving motors 1, 2, and 3 90, 180, and 360 degrees, respectively...");
+            l.set_buzzer_frequency(440.0);
             l.set_joint_speeds(0x07, 90.0, 90.0, 90.0).unwrap();
             l.move_motors(0x07, 90.0, 180.0, 360.0).unwrap();
             l.move_wait(0x07).unwrap();
+            l.set_buzzer_frequency(0.0);
             println!("Test complete.");
 
             println!("Getting joint angles:");

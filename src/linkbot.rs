@@ -221,6 +221,14 @@ impl Linkbot {
         })
     }
 
+    pub fn set_buzzer_frequency(&mut self, frequency: f32) -> Result<(), String> {
+        let (tx, rx) = mpsc::channel::<()>();
+        self.inner.set_buzzer_frequency(frequency, move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
     pub fn set_joint_speeds(&mut self, 
                             mask: u32, 
                             speed1: f32, 
