@@ -4,6 +4,9 @@ extern crate linkbot_core as lc;
 extern crate websocket as ws;
 
 use std::env;
+use std::ffi::CString;
+use std::mem;
+use std::os::raw::c_char;
 use std::thread;
 use std::sync::{Mutex};
 
@@ -84,21 +87,16 @@ fn init_daemon(daemon: &Mutex<lc::DaemonProxy>) {
     });
 }
 
-/*
-struct Inner {
-    serial_id: String,
-    to_daemon: mpsc::SyncSender<Vec<u8>>,
+#[no_mangle]
+pub extern fn linkbot_new(serial_id: *mut c_char) -> *mut Linkbot {
+    let robot = unsafe {
+        let cstring = CString::from_raw(serial_id);
+        let robot = Linkbot::new(cstring.to_str().unwrap());
+        mem::forget(cstring);
+        robot
+    };
+    Box::into_raw( Box::new(robot) )
 }
-
-impl Inner {
-    fn new(serial_id: &str) -> Inner {
-        let (sender, receiver) = sync_channel();
-        thread::spawn( move || {
-
-        });
-    }
-}
-*/
 
 #[cfg(test)]
 mod tests {
