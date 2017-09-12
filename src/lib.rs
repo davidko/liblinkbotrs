@@ -98,6 +98,42 @@ pub extern fn linkbot_new(serial_id: *mut c_char) -> *mut Linkbot {
     Box::into_raw( Box::new(robot) )
 }
 
+#[no_mangle]
+pub extern fn linkbot_move(linkbot: *mut Linkbot, 
+                           angle1: f32,
+                           angle2: f32,
+                           angle3: f32)
+{
+    linkbot_move_nb(linkbot, angle1, angle2, angle3);
+    linkbot_move_wait(linkbot);
+}
+
+#[no_mangle]
+pub extern fn linkbot_move_nb(linkbot: *mut Linkbot, 
+                              angle1: f32,
+                              angle2: f32,
+                              angle3: f32)
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    robot.move_motors(0x07, angle1, angle2, angle3).unwrap();
+
+    Box::into_raw(robot);
+}
+
+#[no_mangle]
+pub extern fn linkbot_move_wait(linkbot: *mut Linkbot) {
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    robot.move_wait(0x07).unwrap();
+
+    Box::into_raw(robot);
+}
+
 #[cfg(test)]
 mod tests {
     extern crate colored_logger;

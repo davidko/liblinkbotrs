@@ -9,3 +9,7 @@ log = "*"
 websocket = "*"
 linkbot-core = { path = "../linkbot-core" }
 colored_logger = "*"
+
+[lib]
+name = "linkbotrs"
+crate-type = ["cdylib"]
