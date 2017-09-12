@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 #[macro_use] extern crate lazy_static;
 extern crate linkbot_core as lc;
 #[macro_use] extern crate log;
@@ -6,7 +8,7 @@ extern crate websocket as ws;
 use std::env;
 use std::ffi::CString;
 use std::mem;
-use std::os::raw::c_char;
+use std::os::raw::{c_char, c_void};
 use std::thread;
 use std::sync::{Mutex};
 
@@ -88,7 +90,7 @@ fn init_daemon(daemon: &Mutex<lc::DaemonProxy>) {
 }
 
 #[no_mangle]
-pub extern fn linkbot_new(serial_id: *mut c_char) -> *mut Linkbot {
+pub extern fn linkbotFromSerialId(serial_id: *mut c_char) -> *mut Linkbot {
     let robot = unsafe {
         let cstring = CString::from_raw(serial_id);
         let robot = Linkbot::new(cstring.to_str().unwrap());
@@ -99,39 +101,434 @@ pub extern fn linkbot_new(serial_id: *mut c_char) -> *mut Linkbot {
 }
 
 #[no_mangle]
-pub extern fn linkbot_move(linkbot: *mut Linkbot, 
-                           angle1: f32,
-                           angle2: f32,
-                           angle3: f32)
-{
-    linkbot_move_nb(linkbot, angle1, angle2, angle3);
-    linkbot_move_wait(linkbot);
+pub extern fn linkbotDelete(linkbot: *mut Linkbot) {
+    let robot = unsafe {
+        Box::from_raw(linkbot)
+    };
 }
 
+// GETTERS
+
 #[no_mangle]
-pub extern fn linkbot_move_nb(linkbot: *mut Linkbot, 
-                              angle1: f32,
-                              angle2: f32,
-                              angle3: f32)
+pub extern fn linkbotGetAccelerometer(linkbot: *mut Linkbot, 
+                                      x: *mut f64,
+                                      y: *mut f64,
+                                      z: *mut f64) -> i32
 {
     let mut robot = unsafe {
         Box::from_raw(linkbot)
     };
-
-    robot.move_motors(0x07, angle1, angle2, angle3).unwrap();
-
+    let mut rc = 0;
+    if let Ok((_x, _y, _z)) = robot.get_accelerometer_data() {
+        unsafe {
+        *x = _x as f64;
+        *y = _y as f64;
+        *z = _z as f64;
+        }
+    } else {
+        rc = -1;
+    }
     Box::into_raw(robot);
+    rc
 }
 
 #[no_mangle]
-pub extern fn linkbot_move_wait(linkbot: *mut Linkbot) {
+pub extern fn linkbotGetBatteryVoltage(linkbot: *mut Linkbot, voltage: *mut f64) -> i32
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotGetFormFactor(linkbot: *mut Linkbot, form: *mut i32) -> i32
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotGetJointAngles(linkbot: *mut Linkbot, 
+                                    timestamp: *mut i32,
+                                    angle1: *mut f64,
+                                    angle2: *mut f64,
+                                    angle3: *mut f64) -> i32
+{
     let mut robot = unsafe {
         Box::from_raw(linkbot)
     };
+    let mut rc = 0;
+    if let Ok((_angle1, _angle2, _angle3)) = robot.get_joint_angles() {
+        unsafe {
+        *angle1 = _angle1 as f64;
+        *angle2 = _angle2 as f64;
+        *angle3 = _angle3 as f64;
+        }
+    } else {
+        rc = -1;
+    }
+    Box::into_raw(robot);
+    rc
+}
 
+#[no_mangle]
+pub extern fn linkbotGetJointSpeeds(linkbot: *mut Linkbot, 
+                                    timestamp: *mut i32,
+                                    angle1: *mut f64,
+                                    angle2: *mut f64,
+                                    angle3: *mut f64) -> i32
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+    let mut rc = 0;
+    if let Ok((_angle1, _angle2, _angle3)) = robot.get_joint_angles() {
+        unsafe {
+        *angle1 = _angle1 as f64;
+        *angle2 = _angle2 as f64;
+        *angle3 = _angle3 as f64;
+        }
+    } else {
+        rc = -1;
+    }
+    Box::into_raw(robot);
+    rc
+}
+
+#[no_mangle]
+pub extern fn linkbotGetJointStates(linkbot: *mut Linkbot, 
+                                    timestamp: *mut i32,
+                                    state1: *mut i32,
+                                    state2: *mut i32,
+                                    state3: *mut i32) -> i32
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotGetLedColor(linkbot: *mut Linkbot, 
+                                 red: *mut i32,
+                                 green: *mut i32,
+                                 blue: *mut i32) -> i32
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+    let mut rc = 0;
+    if let Ok((r,g,b)) = robot.get_led_color() {
+        unsafe {
+        *red = r as i32;
+        *green = g as i32;
+        *blue = b as i32;
+        }
+    } else {
+        rc = -1;
+    }
+    Box::into_raw(robot);
+    rc
+}
+
+#[no_mangle]
+pub extern fn linkbotGetVersionString(linkbot: *mut Linkbot, 
+                                      version: *mut c_char,
+                                      n: i32) -> i32
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotGetSerialId(linkbot: *mut Linkbot, 
+                                 serial_id: *mut c_char) -> i32
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotGetJointSafetyThresholds(linkbot: *mut Linkbot, 
+                                              thresh1: *mut i32,
+                                              thresh2: *mut i32,
+                                              thresh3: *mut i32) -> i32
+{
+    unimplemented!();
+}
+
+pub extern fn linkbotGetJointSafetyAngles(linkbot: *mut Linkbot, 
+                                          angle1: *mut f64,
+                                          angle2: *mut f64,
+                                          angle3: *mut f64) -> i32
+{
+    unimplemented!();
+}
+
+// SETTERS
+pub extern fn linkbotSetAlphaI(linkbot: *mut Linkbot, 
+                               mask: i32,
+                               alpha1: *mut f64,
+                               alpha2: *mut f64,
+                               alpha3: *mut f64) -> i32
+{
+    unimplemented!();
+}
+
+pub extern fn linkbotSetAlphaF(linkbot: *mut Linkbot, 
+                               mask: i32,
+                               alpha1: *mut f64,
+                               alpha2: *mut f64,
+                               alpha3: *mut f64) -> i32
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotResetEncoderRevs(linkbot: *mut Linkbot) -> i32
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+    robot.reset_encoders().unwrap();
+    Box::into_raw(robot);
+    0
+}
+
+#[no_mangle]
+pub extern fn linkbotSetBuzzerFrequency(linkbot: *mut Linkbot,
+                                        frequency: f32) -> i32
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+    robot.set_buzzer_frequency(frequency).unwrap();
+    Box::into_raw(robot);
+    0
+}
+
+#[no_mangle]
+pub extern fn linkbotSetJointSpeeds(linkbot: *mut Linkbot,
+                                    mask: i32,
+                                    speed1: f64,
+                                    speed2: f64,
+                                    speed3: f64) -> i32
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+    robot.set_joint_speeds(mask as u32, 
+                           speed1 as f32, 
+                           speed2 as f32, 
+                           speed3 as f32).unwrap();
+    Box::into_raw(robot);
+    0
+}
+
+#[no_mangle]
+pub extern fn linkbotSetJointStates(linkbot: *mut Linkbot,
+                                    mask: i32,
+                                    state1: i32, coef1: f64,
+                                    state2: i32, coef2: f64,
+                                    state3: i32, coef3: f64) -> i32
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotSetJointStatesTimed(linkbot: *mut Linkbot,
+                                         mask: i32,
+                                         state1: i32, coef1: f64, end1: i32,
+                                         state2: i32, coef2: f64, end2: i32,
+                                         state3: i32, coef3: f64, end3: i32) -> i32
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotSetLedColor(linkbot: *mut Linkbot,
+                                 red: i32,
+                                 green: i32,
+                                 blue: i32) -> i32
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+    robot.set_led_color(red as u8, green as u8, blue as u8).unwrap();
+    Box::into_raw(robot);
+    0
+}
+
+#[no_mangle]
+pub extern fn linkbotSetJointSafetyThresholds(linkbot: *mut Linkbot,
+                                              mask: i32,
+                                              t1: i32,
+                                              t2: i32,
+                                              t3: i32) -> i32
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotSetJointSafetyAngles(linkbot: *mut Linkbot,
+                                          mask: i32,
+                                          t1: f64,
+                                          t2: f64,
+                                          t3: f64) -> i32
+{
+    unimplemented!();
+}
+
+// MOVEMENT
+
+#[no_mangle]
+pub extern fn linkbotMoveAccel(linkbot: *mut Linkbot, 
+                               mask: i32, relativeMask: i32,
+                               a1: f64, timeout1: f64, endstate1: i32,
+                               a2: f64, timeout2: f64, endstate2: i32,
+                               a3: f64, timeout3: f64, endstate3: i32) -> i32
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotMoveSmooth(linkbot: *mut Linkbot, 
+                                mask: i32, relativeMask: i32,
+                                angle1: f64,
+                                angle2: f64,
+                                angle3: f64) -> i32
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotMoveContinuous(linkbot: *mut Linkbot, 
+                                    mask: i32,
+                                    d1: f64,
+                                    d2: f64,
+                                    d3: f64) -> i32
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotMoveWait(linkbot: *mut Linkbot) -> i32 {
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
     robot.move_wait(0x07).unwrap();
-
     Box::into_raw(robot);
+    0
+}
+
+#[no_mangle]
+pub extern fn linkbotDrive(linkbot: *mut Linkbot, 
+                           mask: i32,
+                           d1: f64,
+                           d2: f64,
+                           d3: f64) -> i32
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotDriveTo(linkbot: *mut Linkbot, 
+                             mask: i32,
+                             d1: f64,
+                             d2: f64,
+                             d3: f64) -> i32
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotMotorPower(linkbot: *mut Linkbot, 
+                                mask: i32,
+                                d1: i32,
+                                d2: i32,
+                                d3: i32) -> i32
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotMove(linkbot: *mut Linkbot, 
+                          mask: i32,
+                          angle1: f64,
+                          angle2: f64,
+                          angle3: f64) -> i32
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+    robot.move_motors(mask as u8, 
+                      angle1 as f32, 
+                      angle2 as f32, 
+                      angle3 as f32).unwrap();
+    Box::into_raw(robot);
+    0
+}
+
+#[no_mangle]
+pub extern fn linkbotMoveTo(linkbot: *mut Linkbot, 
+                            mask: i32,
+                            angle1: f64,
+                            angle2: f64,
+                            angle3: f64) -> i32
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+    robot.move_motors_to(mask as u8, 
+                         angle1 as f32, 
+                         angle2 as f32, 
+                         angle3 as f32).unwrap();
+    Box::into_raw(robot);
+    0
+}
+
+#[no_mangle]
+pub extern fn linkbotStop(linkbot: *mut Linkbot, 
+                          mask: i32) -> i32
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+    robot.stop(mask as u32).unwrap();
+    Box::into_raw(robot);
+    0
+}
+
+#[no_mangle]
+pub extern fn linkbotSetButtonEventCallback(linkbot: *mut Linkbot,
+                                            cb: extern fn(i32, i32, i32, *mut c_void),
+                                            user_data: *mut c_void)
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotSetEncoderEventCallback(linkbot: *mut Linkbot,
+                                             cb: extern fn(i32, f64, i32, *mut c_void),
+                                             user_data: *mut c_void)
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotSetJointEventCallback(linkbot: *mut Linkbot,
+                                           cb: extern fn(i32, i32, i32, *mut c_void),
+                                           user_data: *mut c_void)
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotSetAccelerometerEventCallback(linkbot: *mut Linkbot,
+                                                   cb: extern fn(f64, f64, f64, i32, *mut c_void),
+                                                   user_data: *mut c_void)
+{
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotSetConnectionTerminatedCallback(linkbot: *mut Linkbot,
+                                                     cb: extern fn(i32, *mut c_void),
+                                                     user_data: *mut c_void)
+{
+    unimplemented!();
 }
 
 #[cfg(test)]

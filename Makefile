@@ -2,10 +2,10 @@ VERSION = $(shell grep 'version' Cargo.toml | sed 's/version *= *"\([0-9\.]*\)"/
 
 all: linkbotrs
 
-c_test: c_test/test.cpp include/linkbotrs.h target/release/liblinkbotrs.so
-	g++ -std=c++11 -Iinclude c_test/test.cpp -c -o c_test/test.o
-	g++ -L./target/release c_test/test.o -llinkbotrs -o c_test/test
-	LD_LIBRARY_PATH=./target/release c_test/test
+cpp_test: 
+	g++ -g -std=c++11 -Iinclude c_test/test.cpp -c -o c_test/test.o
+	g++ -L./target/debug c_test/test.o -llinkbotrs -o c_test/test
+	LD_LIBRARY_PATH=./target/debug c_test/test
 
 linkbotrs:
 	cargo build --release -j8
