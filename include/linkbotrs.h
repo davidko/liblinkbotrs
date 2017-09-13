@@ -82,8 +82,7 @@ void linkbotDelete(Linkbot* l);
 int linkbotWriteEeprom(Linkbot* l, unsigned int address, const char *data, unsigned int size);
 
 /* GETTERS */
-int linkbotGetAccelerometer(Linkbot* l, int *timestamp, double *x, double *y,
-                            double *z);
+int linkbotGetAccelerometer(Linkbot* l, double *x, double *y, double *z);
 int linkbotGetBatteryVoltage(Linkbot* l, double*);
 int linkbotGetFormFactor(Linkbot* l, LinkbotFormFactor *form);
 int linkbotGetJointAngles(Linkbot* l, int* timestamp, double *j1, double *j2,
