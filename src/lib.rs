@@ -496,15 +496,27 @@ pub extern fn linkbotStop(linkbot: *mut Linkbot,
 
 #[no_mangle]
 pub extern fn linkbotSetButtonEventCallback(linkbot: *mut Linkbot,
-                                            cb: extern fn(i32, i32, i32, *mut c_void),
+                                            cb: Option<extern fn(i32, i32, i32, *mut c_void)>,
                                             user_data: *mut c_void)
 {
-    unimplemented!();
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    if let Some(callback) = cb {
+        robot.enable_button_event( Some( Box::new( move |timestamp, button, state| {
+            callback(timestamp as i32, button as i32, state as i32, user_data);
+        })));
+    } else {
+        robot.enable_button_event(None);
+    }
+
+    Box::into_raw(robot);
 }
 
 #[no_mangle]
 pub extern fn linkbotSetEncoderEventCallback(linkbot: *mut Linkbot,
-                                             cb: extern fn(i32, f64, i32, *mut c_void),
+                                             cb: Option<extern fn(i32, f64, i32, *mut c_void)>,
                                              user_data: *mut c_void)
 {
     unimplemented!();
@@ -512,7 +524,7 @@ pub extern fn linkbotSetEncoderEventCallback(linkbot: *mut Linkbot,
 
 #[no_mangle]
 pub extern fn linkbotSetJointEventCallback(linkbot: *mut Linkbot,
-                                           cb: extern fn(i32, i32, i32, *mut c_void),
+                                           cb: Option<extern fn(i32, i32, i32, *mut c_void)>,
                                            user_data: *mut c_void)
 {
     unimplemented!();
@@ -520,7 +532,7 @@ pub extern fn linkbotSetJointEventCallback(linkbot: *mut Linkbot,
 
 #[no_mangle]
 pub extern fn linkbotSetAccelerometerEventCallback(linkbot: *mut Linkbot,
-                                                   cb: extern fn(f64, f64, f64, i32, *mut c_void),
+                                                   cb: Option<extern fn(f64, f64, f64, i32, *mut c_void)>,
                                                    user_data: *mut c_void)
 {
     unimplemented!();
@@ -528,7 +540,7 @@ pub extern fn linkbotSetAccelerometerEventCallback(linkbot: *mut Linkbot,
 
 #[no_mangle]
 pub extern fn linkbotSetConnectionTerminatedCallback(linkbot: *mut Linkbot,
-                                                     cb: extern fn(i32, *mut c_void),
+                                                     cb: Option<extern fn(i32, *mut c_void)>,
                                                      user_data: *mut c_void)
 {
     unimplemented!();
