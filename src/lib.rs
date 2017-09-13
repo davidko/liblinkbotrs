@@ -27,14 +27,17 @@ lazy_static! {
     };
 }
 
-const DEFAULT_DAEMON_HOST: &'static str = "ws://127.0.0.1:42000";
+const DEFAULT_DAEMON_HOST: &'static str = "127.0.0.1:42000";
 
 fn init_daemon(daemon: &Mutex<lc::DaemonProxy>) {
     // Create the websocket connection
-    let uri = match env::var("LINKBOT_DAEMON_HOSTPORT") {
+    let mut uri = match env::var("LINKBOT_DAEMON_HOSTPORT") {
         Ok(address) => address,
         _ => String::from(DEFAULT_DAEMON_HOST)
     };
+    if !uri.starts_with("ws://") && !uri.starts_with("wss://") {
+        uri = String::from("ws://") + uri.as_str();
+    }
     let client = ClientBuilder::new(uri.as_str())
         .unwrap()
         .connect_insecure()
