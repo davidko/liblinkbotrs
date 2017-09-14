@@ -239,6 +239,14 @@ impl Linkbot {
         })
     }
 
+    pub fn set_alpha_i(&mut self, mask: u32, values: Vec<f32>) -> Result<(), String> {
+        let (tx, rx) = mpsc::channel::<()>();
+        self.inner.set_motor_controller_alpha_i(mask, values, move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
     pub fn set_buzzer_frequency(&mut self, frequency: f32) -> Result<(), String> {
         let (tx, rx) = mpsc::channel::<()>();
         self.inner.set_buzzer_frequency(frequency, move || {

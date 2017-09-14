@@ -306,11 +306,16 @@ pub extern fn linkbotGetJointSafetyAngles(linkbot: *mut Linkbot,
 // SETTERS
 pub extern fn linkbotSetAlphaI(linkbot: *mut Linkbot, 
                                mask: i32,
-                               alpha1: *mut f64,
-                               alpha2: *mut f64,
-                               alpha3: *mut f64) -> i32
+                               alpha1: f64,
+                               alpha2: f64,
+                               alpha3: f64) -> i32
 {
-    unimplemented!();
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+    robot.set_alpha_i(mask as u32, vec![alpha1 as f32, alpha2 as f32, alpha3 as f32] ).unwrap();
+    Box::into_raw(robot);
+    0
 }
 
 pub extern fn linkbotSetAlphaF(linkbot: *mut Linkbot, 
