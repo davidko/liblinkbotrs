@@ -110,6 +110,16 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
+    pub fn get_joint_states(&mut self) -> 
+        Result<(u32, lc::JointState, lc::JointState, lc::JointState), String> 
+    {
+        let (tx, rx) = mpsc::channel::<(u32, lc::JointState, lc::JointState, lc::JointState)>();
+        self.inner.get_joint_states(move |timestamp, states| {
+            tx.send((timestamp, states[0], states[1], states[2])).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
     pub fn get_led_color(&mut self) -> Result<(u8, u8, u8), String> {
         let (tx, rx) = mpsc::channel::<(u8, u8, u8)>();
         self.inner.get_led_color(move |r, g, b| {

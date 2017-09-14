@@ -214,7 +214,22 @@ pub extern fn linkbotGetJointStates(linkbot: *mut Linkbot,
                                     state2: *mut i32,
                                     state3: *mut i32) -> i32
 {
-    unimplemented!();
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+    let mut rc = 0;
+    if let Ok((_timestamp, _s1, _s2, _s3)) = robot.get_joint_states() {
+        unsafe {
+            *timestamp = _timestamp as i32;
+            *state1 = _s1 as i32;
+            *state2 = _s2 as i32;
+            *state3 = _s3 as i32;
+        }
+    } else {
+        rc = -1;
+    }
+    Box::into_raw(robot);
+    rc
 }
 
 #[no_mangle]
