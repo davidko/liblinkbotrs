@@ -2,9 +2,12 @@
 extern crate linkbot_core as lc;
 extern crate websocket as ws;
 
+use std::clone::Clone;
 use std::f32::consts::PI;
 use std::sync::{Arc, Condvar, Mutex, mpsc};
 use std::time::Duration;
+
+use super::JointStateCommand;
 
 
 pub struct Linkbot {
@@ -247,6 +250,14 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
+    pub fn set_alpha_f(&mut self, mask: u32, values: Vec<f32>) -> Result<(), String> {
+        let (tx, rx) = mpsc::channel::<()>();
+        self.inner.set_motor_controller_alpha_f(mask, values, move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
     pub fn set_buzzer_frequency(&mut self, frequency: f32) -> Result<(), String> {
         let (tx, rx) = mpsc::channel::<()>();
         self.inner.set_buzzer_frequency(frequency, move || {
@@ -272,6 +283,64 @@ impl Linkbot {
             }).unwrap();
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
+
+    pub fn set_joint_states(&mut self, 
+                            state1: &Option< (JointStateCommand, f32, Option<f32>, Option<JointStateCommand>) >,
+                            state2: &Option< (JointStateCommand, f32, Option<f32>, Option<JointStateCommand>) >,
+                            state3: &Option< (JointStateCommand, f32, Option<f32>, Option<JointStateCommand>) >)
+        -> Result<(), String>
+    {
+        let states = vec![state1, state2, state3];
+
+        let joint_state_command_to_proto = |jsc: &JointStateCommand| {
+            match *jsc {
+                JointStateCommand::Coast => lc::JointState::COAST,
+                JointStateCommand::Hold => lc::JointState::HOLD,
+                JointStateCommand::Moving => lc::JointState::MOVING,
+                _ => lc::JointState::COAST,
+            }
+        };
+
+        let goals:Vec<Option<lc::Goal>> = states.iter().map(|maybe_state| {
+            match **maybe_state {
+                None => None,
+                Some( (ref command, coef, maybe_timeout, ref maybe_end ) ) => {
+                    let mut g = lc::Goal::new();
+                    match *command {
+                        JointStateCommand::Coast => {
+                            g.set_field_type( lc::Goal_Type::INFINITE );
+                            g.set_controller( lc::Goal_Controller::PID );
+                        }
+                        JointStateCommand::Hold => {
+                            g.set_field_type( lc::Goal_Type::RELATIVE );
+                            g.set_controller( lc::Goal_Controller::PID );
+                        }
+                        JointStateCommand::Power => {
+                            g.set_field_type( lc::Goal_Type::INFINITE );
+                            g.set_controller( lc::Goal_Controller::CONSTVEL );
+                            g.set_goal( coef );
+                        }
+                        _ => { return None; }
+                    }
+
+                    if let Some(timeout) = maybe_timeout {
+                        g.set_timeout(timeout);
+                    }
+
+                    if let Some(ref end) = *maybe_end {
+                        g.set_modeOnTimeout( joint_state_command_to_proto(end) );
+                    }
+                    Some(g)
+                }
+            }
+        }).collect();
+        let (tx, rx) = mpsc::channel::<()>();
+        self.inner.robot_move(goals[0].clone(), goals[1].clone(), goals[2].clone(), move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
 
     pub fn set_led_color(&mut self, red: u8, green: u8, blue: u8) -> Result<(), String> {
         let (tx, rx) = mpsc::channel::<()>();

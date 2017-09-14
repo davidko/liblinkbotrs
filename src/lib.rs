@@ -5,6 +5,7 @@ extern crate linkbot_core as lc;
 #[macro_use] extern crate log;
 extern crate websocket as ws;
 
+use std::clone::Clone;
 use std::env;
 use std::ffi::CString;
 use std::mem;
@@ -18,6 +19,17 @@ use ws::client::ClientBuilder;
 mod linkbot;
 
 pub use linkbot::{Linkbot};
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub enum JointStateCommand {
+    Coast,
+    Hold,
+    Moving,
+    Error,
+    Failure,
+    Power
+}
 
 lazy_static! {
     static ref DAEMON: Mutex<lc::DaemonProxy> = {
@@ -320,11 +332,16 @@ pub extern fn linkbotSetAlphaI(linkbot: *mut Linkbot,
 
 pub extern fn linkbotSetAlphaF(linkbot: *mut Linkbot, 
                                mask: i32,
-                               alpha1: *mut f64,
-                               alpha2: *mut f64,
-                               alpha3: *mut f64) -> i32
+                               alpha1: f64,
+                               alpha2: f64,
+                               alpha3: f64) -> i32
 {
-    unimplemented!();
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+    robot.set_alpha_f(mask as u32, vec![alpha1 as f32, alpha2 as f32, alpha3 as f32] ).unwrap();
+    Box::into_raw(robot);
+    0
 }
 
 #[no_mangle]
@@ -371,21 +388,65 @@ pub extern fn linkbotSetJointSpeeds(linkbot: *mut Linkbot,
 #[no_mangle]
 pub extern fn linkbotSetJointStates(linkbot: *mut Linkbot,
                                     mask: i32,
-                                    state1: i32, coef1: f64,
-                                    state2: i32, coef2: f64,
-                                    state3: i32, coef3: f64) -> i32
+                                    state1: JointStateCommand, coef1: f64,
+                                    state2: JointStateCommand, coef2: f64,
+                                    state3: JointStateCommand, coef3: f64) -> i32
 {
-    unimplemented!();
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    let states = vec![ (mask&(1) != 0, state1, coef1),
+                       (mask&(1<<1) != 0, state2, coef2),
+                       (mask&(1<<2) != 0, state3, coef3) ];
+
+    let full_states: Vec<Option<(JointStateCommand, f32, Option<f32>, Option<JointStateCommand>)>> = 
+        states.iter().map(| &(enable, ref state, coef) | {
+            if ! enable {
+                None
+            } else {
+                Some( (*state, coef as f32, None, None) )
+            }
+        }).collect();
+                     
+    robot.set_joint_states( &full_states[0],
+                            &full_states[1],
+                            &full_states[2]).unwrap();
+
+    Box::into_raw(robot);
+    0
 }
 
 #[no_mangle]
 pub extern fn linkbotSetJointStatesTimed(linkbot: *mut Linkbot,
                                          mask: i32,
-                                         state1: i32, coef1: f64, end1: i32,
-                                         state2: i32, coef2: f64, end2: i32,
-                                         state3: i32, coef3: f64, end3: i32) -> i32
+                                         state1: JointStateCommand, coef1: f64, t1: f64, end1: JointStateCommand,
+                                         state2: JointStateCommand, coef2: f64, t2: f64, end2: JointStateCommand,
+                                         state3: JointStateCommand, coef3: f64, t3: f64, end3: JointStateCommand) -> i32
 {
-    unimplemented!();
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    let states = vec![ (mask&(1) != 0, state1, coef1, t1, end1),
+                       (mask&(1<<1) != 0, state2, coef2, t2, end2),
+                       (mask&(1<<2) != 0, state3, coef3, t3, end3) ];
+
+    let full_states: Vec<Option<(JointStateCommand, f32, Option<f32>, Option<JointStateCommand>)>> = 
+        states.iter().map(| &(ref enable, ref state, coef, t, ref end) | {
+            if ! enable {
+                None
+            } else {
+                Some( (*state, coef as f32, Some(t as f32), Some(*end)) )
+            }
+        }).collect();
+                     
+    robot.set_joint_states( &full_states[0],
+                            &full_states[1],
+                            &full_states[2]).unwrap();
+
+    Box::into_raw(robot);
+    0
 }
 
 #[no_mangle]
