@@ -144,7 +144,19 @@ pub extern fn linkbotGetBatteryVoltage(linkbot: *mut Linkbot, voltage: *mut f64)
 #[no_mangle]
 pub extern fn linkbotGetFormFactor(linkbot: *mut Linkbot, form: *mut i32) -> i32
 {
-    unimplemented!();
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+    let mut rc = 0;
+    if let Ok(form_factor) = robot.get_form_factor() {
+        unsafe {
+        *form = form_factor as i32;
+        }
+    } else {
+        rc = -1;
+    }
+    Box::into_raw(robot);
+    rc
 }
 
 #[no_mangle]
