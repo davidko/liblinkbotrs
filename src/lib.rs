@@ -257,10 +257,26 @@ pub extern fn linkbotGetLedColor(linkbot: *mut Linkbot,
 
 #[no_mangle]
 pub extern fn linkbotGetVersionString(linkbot: *mut Linkbot, 
-                                      version: *mut c_char,
+                                      version: *mut u8,
                                       n: i32) -> i32
 {
-    unimplemented!();
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+    let mut rc = 0;
+    if let Ok(_version) = robot.get_firmware_version_string() {
+        unsafe {
+            if (n as usize) < _version.len()+1 {
+                rc = -1;
+            } else {
+                std::ptr::copy(_version.as_ptr(), version, _version.len()+1);
+            }
+        }
+    } else {
+        rc = -1;
+    }
+    Box::into_raw(robot);
+    rc
 }
 
 #[no_mangle]

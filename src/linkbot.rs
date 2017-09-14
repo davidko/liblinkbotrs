@@ -93,6 +93,14 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
+    pub fn get_firmware_version_string(&mut self) -> Result<String, String> {
+        let (tx, rx) = mpsc::channel::<String>();
+        self.inner.get_firmware_version_string(move |version| {
+            tx.send(version).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
     pub fn get_form_factor(&mut self) -> Result<lc::FormFactor, String> {
         let (tx, rx) = mpsc::channel::<lc::FormFactor>();
         self.inner.get_form_factor(move |f| {
