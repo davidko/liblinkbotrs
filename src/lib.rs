@@ -17,6 +17,7 @@ use ws::{Message};
 use ws::client::ClientBuilder;
 
 mod linkbot;
+mod util;
 
 pub use linkbot::{Linkbot};
 
@@ -584,10 +585,17 @@ pub extern fn linkbotMove(linkbot: *mut Linkbot,
     let mut robot = unsafe {
         Box::from_raw(linkbot)
     };
-    robot.move_motors(mask as u8, 
-                      angle1 as f32, 
-                      angle2 as f32, 
-                      angle3 as f32).unwrap();
+
+    let mut angles: Vec<Option<f32>> = Vec::new();
+    for (i, angle) in vec![angle1, angle2, angle3].iter().enumerate() {
+        if mask&(1<<i) != 0 {
+            angles.push( Some(*angle as f32) );
+        } else {
+            angles.push( None );
+        }
+    }
+    robot.move_motors(angles).unwrap();
+
     Box::into_raw(robot);
     0
 }
@@ -602,10 +610,17 @@ pub extern fn linkbotMoveTo(linkbot: *mut Linkbot,
     let mut robot = unsafe {
         Box::from_raw(linkbot)
     };
-    robot.move_motors_to(mask as u8, 
-                         angle1 as f32, 
-                         angle2 as f32, 
-                         angle3 as f32).unwrap();
+
+    let mut angles: Vec<Option<f32>> = Vec::new();
+    for (i, angle) in vec![angle1, angle2, angle3].iter().enumerate() {
+        if mask&(1<<i) != 0{
+            angles.push( Some(*angle as f32) );
+        } else {
+            angles.push( None );
+        }
+    }
+    robot.move_motors_to(angles).unwrap();
+
     Box::into_raw(robot);
     0
 }

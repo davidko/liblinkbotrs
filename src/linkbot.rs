@@ -8,6 +8,7 @@ use std::sync::{Arc, Condvar, Mutex, mpsc};
 use std::time::Duration;
 
 use super::JointStateCommand;
+use util;
 
 
 pub struct Linkbot {
@@ -178,6 +179,10 @@ impl Linkbot {
             goals.push(None);
         }
 
+        let goals_mask = util::vec_to_mask(&goals);
+        self.set_joints_moving(goals_mask);
+
+
         let (tx, rx) = mpsc::channel::<()>();
         self.inner.robot_move(goals[0].clone(), goals[1].clone(), goals[2].clone(), move || {
             tx.send(()).unwrap();
@@ -185,31 +190,25 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn move_motors(&mut self, 
-                mask: u8,
-                angle1: f32,
-                angle2: f32,
-                angle3: f32,
-                ) -> Result<(), String> {
-        let mut goal_template = lc::Goal::new();
-        goal_template.set_field_type( lc::Goal_Type::RELATIVE );
-        goal_template.set_controller( lc::Goal_Controller::CONSTVEL );
+    pub fn move_motors(&mut self, angles: Vec< Option<f32> >) -> Result<(), String> {
+        let mut goals:Vec<_> = angles.iter().map( |maybe_angle| {
+            match *maybe_angle {
+                None => None,
+                Some(angle) => {
+                    let mut goal = lc::Goal::new();
+                    goal.set_field_type( lc::Goal_Type::RELATIVE );
+                    goal.set_controller( lc::Goal_Controller::CONSTVEL );
+                    goal.set_goal(angle * PI / 180.0);
+                    Some(goal)
+                }
+            }
+        }).collect();
 
-        let angles = vec![angle1, angle2, angle3];
-        let mut goals = Vec::new();
-        for i in 0..3 {
-            let g = if (mask & (1<<i)) != 0 {
-                let mut g = goal_template.clone();
-                g.set_goal(angles[i]*PI/180.0);
-                Some(g)
-            } else {
-                None
-            };
-            goals.push(g);
+        while goals.len() < 3 {
+            goals.push(None);
         }
 
-        // Set our "joints moving" indicator
-        self.set_joints_moving(mask);
+        self.set_joints_moving( util::vec_to_mask(&goals) );
 
         // Send the message
         let (tx, rx) = mpsc::channel::<()>();
@@ -219,31 +218,25 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn move_motors_to(&mut self, 
-                mask: u8,
-                angle1: f32,
-                angle2: f32,
-                angle3: f32,
-                ) -> Result<(), String> {
-        let mut goal_template = lc::Goal::new();
-        goal_template.set_field_type( lc::Goal_Type::ABSOLUTE);
-        goal_template.set_controller( lc::Goal_Controller::CONSTVEL );
+    pub fn move_motors_to(&mut self, angles: Vec< Option<f32> >) -> Result<(), String> {
+        let mut goals:Vec<_> = angles.iter().map( |maybe_angle| {
+            match *maybe_angle {
+                None => None,
+                Some(angle) => {
+                    let mut goal = lc::Goal::new();
+                    goal.set_field_type( lc::Goal_Type::ABSOLUTE );
+                    goal.set_controller( lc::Goal_Controller::CONSTVEL );
+                    goal.set_goal(angle * PI / 180.0);
+                    Some(goal)
+                }
+            }
+        }).collect();
 
-        let angles = vec![angle1, angle2, angle3];
-        let mut goals = Vec::new();
-        for i in 0..3 {
-            let g = if (mask & (1<<i)) != 0 {
-                let mut g = goal_template.clone();
-                g.set_goal(angles[i]*PI/180.0);
-                Some(g)
-            } else {
-                None
-            };
-            goals.push(g);
+        while goals.len() < 3 {
+            goals.push(None);
         }
 
-        // Set our "joints moving" indicator
-        self.set_joints_moving(mask);
+        self.set_joints_moving( util::vec_to_mask(&goals) );
 
         // Send the message
         let (tx, rx) = mpsc::channel::<()>();
@@ -275,7 +268,7 @@ impl Linkbot {
 
     pub fn reset_to_zero(&mut self) -> Result<(), String> {
         self.reset_encoders().and_then(|_| {
-            self.move_motors_to(0x07, 0.0, 0.0, 0.0)
+            self.move_motors_to(vec![Some(0.0), Some(0.0), Some(0.0)])
         })
     }
 
