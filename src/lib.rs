@@ -488,11 +488,30 @@ pub extern fn linkbotSetJointSafetyAngles(linkbot: *mut Linkbot,
 #[no_mangle]
 pub extern fn linkbotMoveAccel(linkbot: *mut Linkbot, 
                                mask: i32, relativeMask: i32,
-                               a1: f64, timeout1: f64, endstate1: i32,
-                               a2: f64, timeout2: f64, endstate2: i32,
-                               a3: f64, timeout3: f64, endstate3: i32) -> i32
+                               omega1: f64, timeout1: f64, endstate1: JointStateCommand,
+                               omega2: f64, timeout2: f64, endstate2: JointStateCommand,
+                               omega3: f64, timeout3: f64, endstate3: JointStateCommand) -> i32
 {
-    unimplemented!();
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    let mut final_states: Vec<Option<(bool, f32, f32, JointStateCommand)>> = Vec::new();
+    let states = vec![
+        (omega1, timeout1, endstate1),
+        (omega2, timeout2, endstate2),
+        (omega3, timeout3, endstate3) ];
+    for (i, item) in states.iter().enumerate() {
+        let maybe_state = if mask&(1<<i) != 0 {
+            Some( ( relativeMask&(1<<i) != 0, item.0 as f32, item.1 as f32, item.2 ) )
+        } else {
+            None
+        };
+        final_states.push(maybe_state);
+    }
+    robot.move_accel(final_states).unwrap();
+    Box::into_raw(robot);
+    0
 }
 
 #[no_mangle]

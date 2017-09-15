@@ -148,6 +148,43 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
+    pub fn move_accel(&mut self,
+                      states: Vec<Option<(bool, f32, f32, JointStateCommand)>>)
+                      -> Result<(), String>
+    {
+        //! Each "state" tuple is (relative, omega_0, timeout, endstate)
+        let mut goals: Vec<Option<lc::Goal>> = Vec::new();
+
+        for (i, item) in states.iter().enumerate() {
+            let maybe_goal = if let &Some((relative, omega, timeout, endstate)) = item {
+                let mut goal = lc::Goal::new();
+                goal.set_field_type( 
+                    if relative {
+                        lc::Goal_Type::RELATIVE
+                    } else {
+                        lc::Goal_Type::ABSOLUTE
+                    });
+                goal.set_controller( lc::Goal_Controller::ACCEL );
+                goal.set_timeout(timeout as f32);
+                goal.set_goal(omega as f32);
+                Some(goal)
+            } else {
+                None
+            };
+            goals.push(maybe_goal)
+        }
+
+        while goals.len() < 3 {
+            goals.push(None);
+        }
+
+        let (tx, rx) = mpsc::channel::<()>();
+        self.inner.robot_move(goals[0].clone(), goals[1].clone(), goals[2].clone(), move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
     pub fn move_motors(&mut self, 
                 mask: u8,
                 angle1: f32,
