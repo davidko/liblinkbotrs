@@ -522,7 +522,26 @@ pub extern fn linkbotMoveSmooth(linkbot: *mut Linkbot,
                                 angle2: f64,
                                 angle3: f64) -> i32
 {
-    unimplemented!();
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    let angles = vec![angle1, angle2, angle3];
+
+    let rc:Vec<_> = angles.iter().zip( util::mask_to_vec(mask as u8)).enumerate().map(|tuple| {
+        let (i, item) = tuple;
+        let (angle, enable) = item;
+        if enable {
+            Some((relativeMask&(1<<i)!=0, *angle as f32))
+        } else {
+            None
+        }
+    }).collect();
+
+    robot.move_smooth(rc).unwrap();
+    Box::into_raw(robot);
+    0
+
 }
 
 #[no_mangle]

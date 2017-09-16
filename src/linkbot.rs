@@ -149,6 +149,18 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
+    pub fn move_goal<F>(&mut self, mut goals: Vec<Option<lc::Goal>>, cb: F ) -> Result<(), String> 
+        where F: FnMut(),
+              F: 'static
+    {
+        while goals.len() < 3 {
+            goals.push(None);
+        }
+        let goals_mask = util::vec_to_mask(&goals);
+        self.set_joints_moving(goals_mask);
+        self.inner.robot_move(goals[0].clone(), goals[1].clone(), goals[2].clone(), cb)
+    }
+
     pub fn move_accel(&mut self,
                       states: Vec<Option<(bool, f32, f32, JointStateCommand)>>)
                       -> Result<(), String>
@@ -175,16 +187,8 @@ impl Linkbot {
             goals.push(maybe_goal)
         }
 
-        while goals.len() < 3 {
-            goals.push(None);
-        }
-
-        let goals_mask = util::vec_to_mask(&goals);
-        self.set_joints_moving(goals_mask);
-
-
         let (tx, rx) = mpsc::channel::<()>();
-        self.inner.robot_move(goals[0].clone(), goals[1].clone(), goals[2].clone(), move || {
+        self.move_goal(goals, move || {
             tx.send(()).unwrap();
         }).unwrap();
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
@@ -204,15 +208,9 @@ impl Linkbot {
             }
         }).collect();
 
-        while goals.len() < 3 {
-            goals.push(None);
-        }
-
-        self.set_joints_moving( util::vec_to_mask(&goals) );
-
         // Send the message
         let (tx, rx) = mpsc::channel::<()>();
-        self.inner.robot_move(goals[0].clone(), goals[1].clone(), goals[2].clone(), move || {
+        self.move_goal(goals, move || {
             tx.send(()).unwrap();
         }).unwrap();
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
@@ -232,15 +230,30 @@ impl Linkbot {
             }
         }).collect();
 
-        while goals.len() < 3 {
-            goals.push(None);
-        }
+        // Send the message
+        let (tx, rx) = mpsc::channel::<()>();
+        self.move_goal(goals, move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
 
-        self.set_joints_moving( util::vec_to_mask(&goals) );
+    pub fn move_smooth(&mut self, angles: Vec<Option<(bool, f32)>>) -> Result<(), String> {
+        let mut goals:Vec<_> = angles.iter().map( |maybe_tuple| {
+            if let Some((relative, angle)) = *maybe_tuple {
+                let mut goal = lc::Goal::new();
+                goal.set_field_type( if relative { lc::Goal_Type::RELATIVE } else { lc::Goal_Type::ABSOLUTE } );
+                goal.set_controller( lc::Goal_Controller::SMOOTH );
+                goal.set_goal(angle);
+                Some(goal)
+            } else {
+                None
+            }
+        }).collect();
 
         // Send the message
         let (tx, rx) = mpsc::channel::<()>();
-        self.inner.robot_move(goals[0].clone(), goals[1].clone(), goals[2].clone(), move || {
+        self.move_goal(goals, move || {
             tx.send(()).unwrap();
         }).unwrap();
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
