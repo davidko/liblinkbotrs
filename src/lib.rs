@@ -5,8 +5,8 @@ extern crate linkbot_core as lc;
 #[macro_use] extern crate log;
 extern crate websocket as ws;
 
-use std::clone::Clone;
 use std::env;
+use std::f32::consts::PI;
 use std::ffi::CString;
 use std::mem;
 use std::os::raw::{c_char, c_void};
@@ -690,7 +690,22 @@ pub extern fn linkbotSetEncoderEventCallback(linkbot: *mut Linkbot,
                                              cb: Option<extern fn(i32, f64, i32, *mut c_void)>,
                                              user_data: *mut c_void)
 {
-    unimplemented!();
+    //! Callback parameters: (joint_no, angle, timestamp, userdata)
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    if let Some(callback) = cb {
+        robot.enable_encoder_event( Some( Box::new( move |timestamp, mask, values| {
+            for (i, (enable, value)) in util::mask_to_vec(mask as u8).iter().zip( values ).enumerate() {
+                callback(i as i32, (value*180.0/PI) as f64, timestamp as i32, user_data);
+            }
+        })));
+    } else {
+        robot.enable_encoder_event(None);
+    }
+
+    Box::into_raw(robot);
 }
 
 #[no_mangle]
@@ -716,6 +731,26 @@ pub extern fn linkbotSetConnectionTerminatedCallback(linkbot: *mut Linkbot,
 {
     unimplemented!();
 }
+
+// MISC Functions
+
+pub extern fn linkbotWriteTwi(linkbot: *mut Linkbot,
+                              address: u32,
+                              data: *mut u8,
+                              datasize: usize) -> i32
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    let _data = unsafe { std::slice::from_raw_parts(data, datasize) };
+    let v = _data.to_vec();
+    robot.write_twi(address, v);
+
+    Box::into_raw(robot);
+    0
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -749,11 +784,21 @@ mod tests {
             };
             l.enable_button_event(Some( Box::new( button_handler ) ) ).unwrap();
             io::stdin().read_line(&mut input);
+            l.enable_button_event(None).unwrap();
+
+            println!("Setting robot encoder event handler. Press 'Enter' to continue.");
+            let event_handler = |timestamp, mask, values: Vec<f32>| {
+                println!("Encoder event! time: {}, mask: {}, values: {} {} {}",
+                         timestamp, mask, values[0], values[1], values[2]);
+            };
+            l.enable_encoder_event(Some( Box::new( event_handler ) ) ).unwrap();
+            io::stdin().read_line(&mut input);
+            l.enable_encoder_event(None).unwrap();
 
             println!("Testing motors and buzzer. Moving motors 1, 2, and 3 90, 180, and 360 degrees, respectively...");
             l.set_buzzer_frequency(440.0);
             l.set_joint_speeds(0x07, 90.0, 90.0, 90.0).unwrap();
-            l.move_motors(0x07, 90.0, 180.0, 360.0).unwrap();
+            l.move_motors(vec![90.0, 180.0, 360.0].iter().map(|x| Some(*x)).collect()).unwrap();
             l.move_wait(0x07).unwrap();
             l.set_buzzer_frequency(0.0);
             println!("Test complete.");
@@ -781,7 +826,7 @@ mod tests {
 
             println!("Setting joint speeds to 180...");
             l.set_joint_speeds(0x07, 180.0, 180.0, 180.0).unwrap();
-            l.move_motors(0x07, 180.0, 180.0, 180.0).unwrap();
+            l.move_motors(vec![180.0, 180.0, 180.0].iter().map(|x| Some(*x)).collect()).unwrap();
             l.move_wait(0x07).unwrap();
             l.set_joint_speeds(0x07, 90.0, 90.0, 90.0).unwrap();
             l.stop(0x07).unwrap();
