@@ -123,6 +123,7 @@ int linkbotSetJointStatesTimed(Linkbot* l, int mask,
 int linkbotSetLedColor(Linkbot* l, int r, int g, int b);
 int linkbotSetJointSafetyThresholds(Linkbot* l, int mask, int t1, int t2, int t3);
 int linkbotSetJointSafetyAngles(Linkbot* l, int mask, double t1, double t2, double t3);
+int linkbotSetPeripheralResetMask(Linkbot* l, int mask, int peripheralMask);
 
 /* MOVEMENT */
 int linkbotMoveAccel(Linkbot* l, int mask, int relativeMask,
