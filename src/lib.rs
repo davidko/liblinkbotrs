@@ -410,9 +410,7 @@ pub extern fn linkbotSetJointStates(linkbot: *mut Linkbot,
             }
         }).collect();
                      
-    robot.set_joint_states( &full_states[0],
-                            &full_states[1],
-                            &full_states[2]).unwrap();
+    robot.set_joint_states(&full_states).unwrap();
 
     Box::into_raw(robot);
     0
@@ -442,9 +440,7 @@ pub extern fn linkbotSetJointStatesTimed(linkbot: *mut Linkbot,
             }
         }).collect();
                      
-    robot.set_joint_states( &full_states[0],
-                            &full_states[1],
-                            &full_states[2]).unwrap();
+    robot.set_joint_states(&full_states).unwrap();
 
     Box::into_raw(robot);
     0
@@ -482,6 +478,19 @@ pub extern fn linkbotSetJointSafetyAngles(linkbot: *mut Linkbot,
                                           t3: f64) -> i32
 {
     unimplemented!();
+}
+
+#[no_mangle]
+pub extern fn linkbotSetPeripheralResetMask(linkbot: *mut Linkbot,
+                                            mask: i32,
+                                            peripheral_mask: i32) -> i32
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+    robot.set_reset_on_disconnect(mask as u32, peripheral_mask as u32).unwrap();
+    Box::into_raw(robot);
+    0
 }
 
 // MOVEMENT

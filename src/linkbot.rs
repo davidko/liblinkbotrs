@@ -328,12 +328,10 @@ impl Linkbot {
     }
 
     pub fn set_joint_states(&mut self, 
-                            state1: &Option< (JointStateCommand, f32, Option<f32>, Option<JointStateCommand>) >,
-                            state2: &Option< (JointStateCommand, f32, Option<f32>, Option<JointStateCommand>) >,
-                            state3: &Option< (JointStateCommand, f32, Option<f32>, Option<JointStateCommand>) >)
+                            states: &Vec<Option< (JointStateCommand, f32, Option<f32>, Option<JointStateCommand>) >>)
         -> Result<(), String>
     {
-        let states = vec![state1, state2, state3];
+        //let states = vec![state1, state2, state3];
 
         let joint_state_command_to_proto = |jsc: &JointStateCommand| {
             match *jsc {
@@ -344,8 +342,8 @@ impl Linkbot {
             }
         };
 
-        let goals:Vec<Option<lc::Goal>> = states.iter().map(|maybe_state| {
-            match **maybe_state {
+        let mut goals:Vec<Option<lc::Goal>> = states.iter().map(|maybe_state| {
+            match *maybe_state {
                 None => None,
                 Some( (ref command, coef, maybe_timeout, ref maybe_end ) ) => {
                     let mut g = lc::Goal::new();
@@ -377,6 +375,10 @@ impl Linkbot {
                 }
             }
         }).collect();
+        while goals.len() < 3 {
+            goals.push(None);
+        }
+
         let (tx, rx) = mpsc::channel::<()>();
         self.inner.robot_move(goals[0].clone(), goals[1].clone(), goals[2].clone(), move || {
             tx.send(()).unwrap();
@@ -388,6 +390,14 @@ impl Linkbot {
     pub fn set_led_color(&mut self, red: u8, green: u8, blue: u8) -> Result<(), String> {
         let (tx, rx) = mpsc::channel::<()>();
         self.inner.set_led_color(red, green, blue, move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
+    pub fn set_reset_on_disconnect(&mut self, mask: u32, peripheral_mask: u32) -> Result<(), String> {
+        let (tx, rx) = mpsc::channel::<()>();
+        self.inner.set_reset_on_disconnect(mask, peripheral_mask, move || {
             tx.send(()).unwrap();
         }).unwrap();
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
