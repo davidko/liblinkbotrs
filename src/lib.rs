@@ -786,6 +786,7 @@ mod tests {
             io::stdin().read_line(&mut input);
             l.enable_button_event(None).unwrap();
 
+            l.stop(0x07).unwrap();
             println!("Setting robot encoder event handler. Press 'Enter' to continue.");
             let event_handler = |timestamp, mask, values: Vec<f32>| {
                 println!("Encoder event! time: {}, mask: {}, values: {} {} {}",
