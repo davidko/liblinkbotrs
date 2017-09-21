@@ -198,7 +198,6 @@ pub extern fn linkbotGetJointAngles(linkbot: *mut Linkbot,
 
 #[no_mangle]
 pub extern fn linkbotGetJointSpeeds(linkbot: *mut Linkbot, 
-                                    timestamp: *mut i32,
                                     angle1: *mut f64,
                                     angle2: *mut f64,
                                     angle3: *mut f64) -> i32
@@ -207,7 +206,7 @@ pub extern fn linkbotGetJointSpeeds(linkbot: *mut Linkbot,
         Box::from_raw(linkbot)
     };
     let mut rc = 0;
-    if let Ok((_angle1, _angle2, _angle3)) = robot.get_joint_angles() {
+    if let Ok((_angle1, _angle2, _angle3)) = robot.get_joint_speeds() {
         unsafe {
         *angle1 = _angle1 as f64;
         *angle2 = _angle2 as f64;
