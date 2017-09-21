@@ -676,7 +676,7 @@ pub extern fn linkbotSetButtonEventCallback(linkbot: *mut Linkbot,
 
     if let Some(callback) = cb {
         robot.enable_button_event( Some( Box::new( move |timestamp, button, state| {
-            callback(timestamp as i32, button as i32, state as i32, user_data);
+            callback(button as i32, state as i32, timestamp as i32,  user_data);
         })));
     } else {
         robot.enable_button_event(None);
