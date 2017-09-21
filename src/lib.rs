@@ -698,7 +698,9 @@ pub extern fn linkbotSetEncoderEventCallback(linkbot: *mut Linkbot,
     if let Some(callback) = cb {
         robot.enable_encoder_event( Some( Box::new( move |timestamp, mask, values| {
             for (i, (enable, value)) in util::mask_to_vec(mask as u8).iter().zip( values ).enumerate() {
-                callback(i as i32, (value*180.0/PI) as f64, timestamp as i32, user_data);
+                if *enable {
+                    callback(i as i32, (value*180.0/PI) as f64, timestamp as i32, user_data);
+                }
             }
         })));
     } else {
