@@ -1,5 +1,3 @@
-use std::mem;
-use std::ops;
 
 /// Convert Vec<Option<T>> into a bitmask of enabled fields.
 ///

@@ -413,7 +413,22 @@ impl Linkbot {
 
     // Callback functions
     
-
+    pub fn enable_accelerometer_event(&mut self, handler: Option<Box<lc::AccelerometerEventHandler>> ) -> Result<()> 
+    {
+        let (tx, rx) = mpsc::channel::<()>();
+        let mut enable = false;
+        if let Some(mut cb) = handler {
+            enable = true;
+            self.inner.set_accelerometer_event_handler(move |timestamp, x, y, z| {
+                cb(timestamp, x, y, z);
+            });
+        }
+        self.inner.enable_accelerometer_event(enable, None, move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+    
 
     pub fn enable_button_event(&mut self, handler: Option<Box<lc::ButtonEventHandler>> ) -> Result<()> 
     {

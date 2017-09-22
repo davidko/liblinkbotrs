@@ -118,7 +118,7 @@ pub extern fn linkbotFromSerialId(serial_id: *mut c_char) -> *mut Linkbot {
 
 #[no_mangle]
 pub extern fn linkbotDelete(linkbot: *mut Linkbot) {
-    let robot = unsafe {
+    let _ = unsafe {
         Box::from_raw(linkbot)
     };
 }
@@ -722,7 +722,22 @@ pub extern fn linkbotSetAccelerometerEventCallback(linkbot: *mut Linkbot,
                                                    cb: Option<extern fn(f64, f64, f64, i32, *mut c_void)>,
                                                    user_data: *mut c_void)
 {
-    unimplemented!();
+    //! Callback parameters: (x, y, z, timestamp, userdata).
+    //!
+    //! x, y, and z are in units of Earth gravitational "G's".
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    if let Some(callback) = cb {
+        robot.enable_accelerometer_event( Some( Box::new( move |timestamp, x, y, z| {
+            callback(x as f64, y as f64, z as f64, timestamp as i32, user_data);
+        })));
+    } else {
+        robot.enable_accelerometer_event(None);
+    }
+
+    Box::into_raw(robot);
 }
 
 #[no_mangle]
