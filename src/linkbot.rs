@@ -245,7 +245,7 @@ impl Linkbot {
                 let mut goal = lc::Goal::new();
                 goal.set_field_type( if relative { lc::Goal_Type::RELATIVE } else { lc::Goal_Type::ABSOLUTE } );
                 goal.set_controller( lc::Goal_Controller::SMOOTH );
-                goal.set_goal(angle);
+                goal.set_goal(angle * PI / 180.0);
                 Some(goal)
             } else {
                 None
@@ -288,7 +288,8 @@ impl Linkbot {
 
     pub fn set_alpha_i(&mut self, mask: u32, values: Vec<f32>) -> Result<()> {
         let (tx, rx) = mpsc::channel::<()>();
-        self.inner.set_motor_controller_alpha_i(mask, values, move || {
+        let degrees = values.iter().map(|x| x*PI/180.0).collect();
+        self.inner.set_motor_controller_alpha_i(mask, degrees, move || {
             tx.send(()).unwrap();
         }).unwrap();
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
@@ -296,7 +297,8 @@ impl Linkbot {
 
     pub fn set_alpha_f(&mut self, mask: u32, values: Vec<f32>) -> Result<()> {
         let (tx, rx) = mpsc::channel::<()>();
-        self.inner.set_motor_controller_alpha_f(mask, values, move || {
+        let degrees = values.iter().map(|x| x*PI/180.0).collect();
+        self.inner.set_motor_controller_alpha_f(mask, degrees, move || {
             tx.send(()).unwrap();
         }).unwrap();
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )

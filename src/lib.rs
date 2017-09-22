@@ -316,6 +316,7 @@ pub extern fn linkbotGetJointSafetyAngles(linkbot: *mut Linkbot,
 }
 
 // SETTERS
+#[no_mangle]
 pub extern fn linkbotSetAlphaI(linkbot: *mut Linkbot, 
                                mask: i32,
                                alpha1: f64,
@@ -330,6 +331,7 @@ pub extern fn linkbotSetAlphaI(linkbot: *mut Linkbot,
     0
 }
 
+#[no_mangle]
 pub extern fn linkbotSetAlphaF(linkbot: *mut Linkbot, 
                                mask: i32,
                                alpha1: f64,
