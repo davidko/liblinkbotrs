@@ -551,7 +551,6 @@ pub extern fn linkbotMoveSmooth(linkbot: *mut Linkbot,
     robot.move_smooth(rc).unwrap();
     Box::into_raw(robot);
     0
-
 }
 
 #[no_mangle]
@@ -561,7 +560,28 @@ pub extern fn linkbotMoveContinuous(linkbot: *mut Linkbot,
                                     d2: f64,
                                     d3: f64) -> i32
 {
-    unimplemented!();
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    let ds = vec![d1, d2, d3];
+
+    let rc:Vec<_> = ds.iter().zip( util::mask_to_vec(mask as u8)).enumerate().map(|tuple| -> Option<(JointStateCommand, f32, Option<f32>, Option<JointStateCommand>)> {
+        let (i, item) = tuple;
+        let (d, enable) = item;
+        if enable {
+            if *d != 0.0 {
+                Some((JointStateCommand::Moving, *d as f32, None, None))
+            } else {
+                Some((JointStateCommand::Hold, *d as f32, None, None))
+            }
+        } else {
+            None
+        }
+    }).collect();
+    
+    Box::into_raw(robot);
+    0
 }
 
 #[no_mangle]
@@ -577,21 +597,65 @@ pub extern fn linkbotMoveWait(linkbot: *mut Linkbot) -> i32 {
 #[no_mangle]
 pub extern fn linkbotDrive(linkbot: *mut Linkbot, 
                            mask: i32,
-                           d1: f64,
-                           d2: f64,
-                           d3: f64) -> i32
+                           angle1: f64,
+                           angle2: f64,
+                           angle3: f64) -> i32
 {
-    unimplemented!();
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    let angles = vec![angle1, angle2, angle3];
+
+    let rc:Vec<_> = angles.iter().zip( util::mask_to_vec(mask as u8)).enumerate().map(|tuple| {
+        let (i, item) = tuple;
+        let (angle, enable) = item;
+        if enable {
+            let mut g = lc::Goal::new();
+            g.set_field_type(lc::Goal_Type::RELATIVE);
+            g.set_goal(*angle as f32);
+            g.set_controller(lc::Goal_Controller::PID);
+            Some(g)
+        } else {
+            None
+        }
+    }).collect();
+    robot.move_goals(rc);
+
+    Box::into_raw(robot);
+    0
 }
 
 #[no_mangle]
 pub extern fn linkbotDriveTo(linkbot: *mut Linkbot, 
                              mask: i32,
-                             d1: f64,
-                             d2: f64,
-                             d3: f64) -> i32
+                             angle1: f64,
+                             angle2: f64,
+                             angle3: f64) -> i32
 {
-    unimplemented!();
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    let angles = vec![angle1, angle2, angle3];
+
+    let rc:Vec<_> = angles.iter().zip( util::mask_to_vec(mask as u8)).enumerate().map(|tuple| {
+        let (i, item) = tuple;
+        let (angle, enable) = item;
+        if enable {
+            let mut g = lc::Goal::new();
+            g.set_field_type(lc::Goal_Type::ABSOLUTE);
+            g.set_goal(*angle as f32);
+            g.set_controller(lc::Goal_Controller::PID);
+            Some(g)
+        } else {
+            None
+        }
+    }).collect();
+    robot.move_goals(rc);
+
+    Box::into_raw(robot);
+    0
 }
 
 #[no_mangle]

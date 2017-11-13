@@ -157,9 +157,30 @@ impl Linkbot {
         while goals.len() < 3 {
             goals.push(None);
         }
-        let goals_mask = util::vec_to_mask(&goals);
+    
+        let _goals:Vec<_> = goals.iter().map(|maybe_goal| {
+            if let Some(ref goal) = *maybe_goal {
+                let value = goal.get_goal();
+                let mut _goal = goal.clone();
+                _goal.set_goal(value * PI / 180.0);
+                Some(_goal)
+            } else {
+                None
+            }
+        }).collect();
+
+        let goals_mask = util::vec_to_mask(&_goals);
         self.set_joints_moving(goals_mask);
-        self.inner.robot_move(goals[0].clone(), goals[1].clone(), goals[2].clone(), cb)
+        self.inner.robot_move(_goals[0].clone(), _goals[1].clone(), _goals[2].clone(), cb)
+    }
+
+    pub fn move_goals(&mut self, mut goals: Vec<Option<lc::Goal>> ) -> Result<()>
+    {
+        let (tx, rx) = mpsc::channel::<()>();
+        self.move_goal(goals, move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| {format!("{}", e)})
     }
 
     pub fn move_accel(&mut self,
@@ -203,7 +224,7 @@ impl Linkbot {
                     let mut goal = lc::Goal::new();
                     goal.set_field_type( lc::Goal_Type::RELATIVE );
                     goal.set_controller( lc::Goal_Controller::CONSTVEL );
-                    goal.set_goal(angle * PI / 180.0);
+                    goal.set_goal(angle);
                     Some(goal)
                 }
             }
@@ -225,7 +246,7 @@ impl Linkbot {
                     let mut goal = lc::Goal::new();
                     goal.set_field_type( lc::Goal_Type::ABSOLUTE );
                     goal.set_controller( lc::Goal_Controller::CONSTVEL );
-                    goal.set_goal(angle * PI / 180.0);
+                    goal.set_goal(angle);
                     Some(goal)
                 }
             }
@@ -245,7 +266,7 @@ impl Linkbot {
                 let mut goal = lc::Goal::new();
                 goal.set_field_type( if relative { lc::Goal_Type::RELATIVE } else { lc::Goal_Type::ABSOLUTE } );
                 goal.set_controller( lc::Goal_Controller::SMOOTH );
-                goal.set_goal(angle * PI / 180.0);
+                goal.set_goal(angle);
                 Some(goal)
             } else {
                 None
@@ -334,6 +355,8 @@ impl Linkbot {
                             states: &Vec<Option< (JointStateCommand, f32, Option<f32>, Option<JointStateCommand>) >>)
         -> Result<()>
     {
+        //! Each state should have the following information:
+        //! (new_state, coefficient, timeout, end_state)
         //let states = vec![state1, state2, state3];
 
         let joint_state_command_to_proto = |jsc: &JointStateCommand| {
