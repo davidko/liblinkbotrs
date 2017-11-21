@@ -10,6 +10,7 @@ use std::time::Duration;
 use super::JointStateCommand;
 use util;
 
+pub type Result<T> = ::std::result::Result<T, String>;
 
 pub struct Linkbot {
     inner: lc::Robot,
@@ -89,7 +90,7 @@ impl Linkbot {
         robot
     }
 
-    pub fn get_accelerometer_data(&mut self) -> Result<(f32, f32, f32), String> {
+    pub fn get_accelerometer_data(&mut self) -> Result<(f32, f32, f32)> {
         let (tx, rx) = mpsc::channel::<(f32, f32, f32)>();
         self.inner.get_accelerometer_data(move |x, y, z| {
             tx.send((x, y, z)).unwrap();
@@ -97,15 +98,7 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn get_battery_voltage(&mut self) -> Result<lc::FormFactor, String> {
-        let (tx, rx) = mpsc::channel::<lc::FormFactor>();
-        self.inner.get_form_factor(move |f| {
-            tx.send(f).unwrap();
-        }).unwrap();
-        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
-    }
-
-    pub fn get_firmware_version_string(&mut self) -> Result<String, String> {
+    pub fn get_firmware_version_string(&mut self) -> Result<String> {
         let (tx, rx) = mpsc::channel::<String>();
         self.inner.get_firmware_version_string(move |version| {
             tx.send(version).unwrap();
@@ -113,7 +106,7 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn get_form_factor(&mut self) -> Result<lc::FormFactor, String> {
+    pub fn get_form_factor(&mut self) -> Result<lc::FormFactor> {
         let (tx, rx) = mpsc::channel::<lc::FormFactor>();
         self.inner.get_form_factor(move |f| {
             tx.send(f).unwrap();
@@ -121,7 +114,7 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn get_joint_angles(&mut self) -> Result<(f32, f32, f32), String> {
+    pub fn get_joint_angles(&mut self) -> Result<(f32, f32, f32)> {
         let (tx, rx) = mpsc::channel::<(f32, f32, f32)>();
         self.inner.get_encoder_values(move |_, angles| {
             let degrees = angles.iter().map(|&x| x*180.0/PI).collect::<Vec<_>>();
@@ -131,7 +124,7 @@ impl Linkbot {
     }
 
     pub fn get_joint_states(&mut self) -> 
-        Result<(u32, lc::JointState, lc::JointState, lc::JointState), String> 
+        Result<(u32, lc::JointState, lc::JointState, lc::JointState)> 
     {
         let (tx, rx) = mpsc::channel::<(u32, lc::JointState, lc::JointState, lc::JointState)>();
         self.inner.get_joint_states(move |timestamp, states| {
@@ -140,7 +133,7 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn get_led_color(&mut self) -> Result<(u8, u8, u8), String> {
+    pub fn get_led_color(&mut self) -> Result<(u8, u8, u8)> {
         let (tx, rx) = mpsc::channel::<(u8, u8, u8)>();
         self.inner.get_led_color(move |r, g, b| {
             tx.send((r, g, b)).unwrap();
@@ -148,7 +141,7 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn get_joint_speeds(&mut self) -> Result<(f32, f32, f32), String> {
+    pub fn get_joint_speeds(&mut self) -> Result<(f32, f32, f32)> {
         let (tx, rx) = mpsc::channel::<(f32, f32, f32)>();
         self.inner.get_motor_controller_omega(move |omegas| {
             let degrees = omegas.iter().map(|&x| x*180.0/PI).collect::<Vec<_>>();
@@ -157,21 +150,42 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn move_goal<F>(&mut self, mut goals: Vec<Option<lc::Goal>>, cb: F ) -> Result<(), String> 
+    pub fn move_goal<F>(&mut self, mut goals: Vec<Option<lc::Goal>>, cb: F ) -> Result<()> 
         where F: FnMut(),
               F: 'static
     {
         while goals.len() < 3 {
             goals.push(None);
         }
-        let goals_mask = util::vec_to_mask(&goals);
+    
+        let _goals:Vec<_> = goals.iter().map(|maybe_goal| {
+            if let Some(ref goal) = *maybe_goal {
+                let value = goal.get_goal();
+                let mut _goal = goal.clone();
+                _goal.set_goal(value * PI / 180.0);
+                Some(_goal)
+            } else {
+                None
+            }
+        }).collect();
+
+        let goals_mask = util::vec_to_mask(&_goals);
         self.set_joints_moving(goals_mask);
-        self.inner.robot_move(goals[0].clone(), goals[1].clone(), goals[2].clone(), cb)
+        self.inner.robot_move(_goals[0].clone(), _goals[1].clone(), _goals[2].clone(), cb)
+    }
+
+    pub fn move_goals(&mut self, mut goals: Vec<Option<lc::Goal>> ) -> Result<()>
+    {
+        let (tx, rx) = mpsc::channel::<()>();
+        self.move_goal(goals, move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| {format!("{}", e)})
     }
 
     pub fn move_accel(&mut self,
                       states: Vec<Option<(bool, f32, f32, JointStateCommand)>>)
-                      -> Result<(), String>
+                      -> Result<()>
     {
         //! Each "state" tuple is (relative, omega_0, timeout, endstate)
         let mut goals: Vec<Option<lc::Goal>> = Vec::new();
@@ -202,7 +216,7 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn move_motors(&mut self, angles: Vec< Option<f32> >) -> Result<(), String> {
+    pub fn move_motors(&mut self, angles: Vec< Option<f32> >) -> Result<()> {
         let mut goals:Vec<_> = angles.iter().map( |maybe_angle| {
             match *maybe_angle {
                 None => None,
@@ -210,7 +224,7 @@ impl Linkbot {
                     let mut goal = lc::Goal::new();
                     goal.set_field_type( lc::Goal_Type::RELATIVE );
                     goal.set_controller( lc::Goal_Controller::CONSTVEL );
-                    goal.set_goal(angle * PI / 180.0);
+                    goal.set_goal(angle);
                     Some(goal)
                 }
             }
@@ -224,7 +238,7 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn move_motors_to(&mut self, angles: Vec< Option<f32> >) -> Result<(), String> {
+    pub fn move_motors_to(&mut self, angles: Vec< Option<f32> >) -> Result<()> {
         let mut goals:Vec<_> = angles.iter().map( |maybe_angle| {
             match *maybe_angle {
                 None => None,
@@ -232,7 +246,7 @@ impl Linkbot {
                     let mut goal = lc::Goal::new();
                     goal.set_field_type( lc::Goal_Type::ABSOLUTE );
                     goal.set_controller( lc::Goal_Controller::CONSTVEL );
-                    goal.set_goal(angle * PI / 180.0);
+                    goal.set_goal(angle);
                     Some(goal)
                 }
             }
@@ -246,7 +260,7 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn move_smooth(&mut self, angles: Vec<Option<(bool, f32)>>) -> Result<(), String> {
+    pub fn move_smooth(&mut self, angles: Vec<Option<(bool, f32)>>) -> Result<()> {
         let mut goals:Vec<_> = angles.iter().map( |maybe_tuple| {
             if let Some((relative, angle)) = *maybe_tuple {
                 let mut goal = lc::Goal::new();
@@ -267,7 +281,7 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn move_wait(&mut self, mask: u8) -> Result<(), String> {
+    pub fn move_wait(&mut self, mask: u8) -> Result<()> {
         //! The mask indicates which motors to wait for.
 
         let pair = self.joints_moving.clone();
@@ -279,7 +293,7 @@ impl Linkbot {
         Ok(())
     }
 
-    pub fn reset_encoders(&mut self) -> Result<(), String> {
+    pub fn reset_encoders(&mut self) -> Result<()> {
         let (tx, rx) = mpsc::channel::<()>();
         self.inner.reset_encoder_revs(move || {
             tx.send(()).unwrap();
@@ -287,29 +301,31 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn reset_to_zero(&mut self) -> Result<(), String> {
+    pub fn reset_to_zero(&mut self) -> Result<()> {
         self.reset_encoders().and_then(|_| {
             self.move_motors_to(vec![Some(0.0), Some(0.0), Some(0.0)])
         })
     }
 
-    pub fn set_alpha_i(&mut self, mask: u32, values: Vec<f32>) -> Result<(), String> {
+    pub fn set_alpha_i(&mut self, mask: u32, values: Vec<f32>) -> Result<()> {
         let (tx, rx) = mpsc::channel::<()>();
-        self.inner.set_motor_controller_alpha_i(mask, values, move || {
+        let degrees = values.iter().map(|x| x*PI/180.0).collect();
+        self.inner.set_motor_controller_alpha_i(mask, degrees, move || {
             tx.send(()).unwrap();
         }).unwrap();
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn set_alpha_f(&mut self, mask: u32, values: Vec<f32>) -> Result<(), String> {
+    pub fn set_alpha_f(&mut self, mask: u32, values: Vec<f32>) -> Result<()> {
         let (tx, rx) = mpsc::channel::<()>();
-        self.inner.set_motor_controller_alpha_f(mask, values, move || {
+        let degrees = values.iter().map(|x| x*PI/180.0).collect();
+        self.inner.set_motor_controller_alpha_f(mask, degrees, move || {
             tx.send(()).unwrap();
         }).unwrap();
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn set_buzzer_frequency(&mut self, frequency: f32) -> Result<(), String> {
+    pub fn set_buzzer_frequency(&mut self, frequency: f32) -> Result<()> {
         let (tx, rx) = mpsc::channel::<()>();
         self.inner.set_buzzer_frequency(frequency, move || {
             tx.send(()).unwrap();
@@ -321,7 +337,7 @@ impl Linkbot {
                             mask: u32, 
                             speed1: f32, 
                             speed2: f32, 
-                            speed3: f32) -> Result<(), String> {
+                            speed3: f32) -> Result<()> {
         let degrees = vec![speed1, speed2, speed3].iter().map(|s| {
             s*PI/180.0
         }).collect();
@@ -337,8 +353,10 @@ impl Linkbot {
 
     pub fn set_joint_states(&mut self, 
                             states: &Vec<Option< (JointStateCommand, f32, Option<f32>, Option<JointStateCommand>) >>)
-        -> Result<(), String>
+        -> Result<()>
     {
+        //! Each state should have the following information:
+        //! (new_state, coefficient, timeout, end_state)
         //let states = vec![state1, state2, state3];
 
         let joint_state_command_to_proto = |jsc: &JointStateCommand| {
@@ -394,8 +412,7 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-
-    pub fn set_led_color(&mut self, red: u8, green: u8, blue: u8) -> Result<(), String> {
+    pub fn set_led_color(&mut self, red: u8, green: u8, blue: u8) -> Result<()> {
         let (tx, rx) = mpsc::channel::<()>();
         self.inner.set_led_color(red, green, blue, move || {
             tx.send(()).unwrap();
@@ -403,7 +420,7 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn set_reset_on_disconnect(&mut self, mask: u32, peripheral_mask: u32) -> Result<(), String> {
+    pub fn set_reset_on_disconnect(&mut self, mask: u32, peripheral_mask: u32) -> Result<()> {
         let (tx, rx) = mpsc::channel::<()>();
         self.inner.set_reset_on_disconnect(mask, peripheral_mask, move || {
             tx.send(()).unwrap();
@@ -411,7 +428,7 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn stop(&mut self, mask: u32) -> Result<(), String> {
+    pub fn stop(&mut self, mask: u32) -> Result<()> {
         let (tx, rx) = mpsc::channel::<()>();
         self.inner.stop(Some(mask), move || {
             tx.send(()).unwrap();
@@ -419,7 +436,26 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
-    pub fn enable_button_event(&mut self, handler: Option<Box<lc::ButtonEventHandler>> ) -> Result<(), String> 
+    // Callback functions
+    
+    pub fn enable_accelerometer_event(&mut self, handler: Option<Box<lc::AccelerometerEventHandler>> ) -> Result<()> 
+    {
+        let (tx, rx) = mpsc::channel::<()>();
+        let mut enable = false;
+        if let Some(mut cb) = handler {
+            enable = true;
+            self.inner.set_accelerometer_event_handler(move |timestamp, x, y, z| {
+                cb(timestamp, x, y, z);
+            });
+        }
+        self.inner.enable_accelerometer_event(enable, None, move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+    
+
+    pub fn enable_button_event(&mut self, handler: Option<Box<lc::ButtonEventHandler>> ) -> Result<()> 
     {
         let (tx, rx) = mpsc::channel::<()>();
         let mut enable = false;
@@ -430,6 +466,71 @@ impl Linkbot {
             });
         }
         self.inner.enable_button_event(enable, move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
+    pub fn enable_encoder_event(&mut self, handler: Option<Box<lc::EncoderEventHandler>> ) -> Result<()>
+    {
+        let (tx, rx) = mpsc::channel::<()>();
+        let mut s1 = lc::SignalState::new();
+        let mut s2 = lc::SignalState::new();
+        let mut s3 = lc::SignalState::new();
+        s1.set_enable(false);
+        s2.set_enable(false);
+        s3.set_enable(false);
+        if let Some(mut cb) = handler {
+            s1.set_enable(true);
+            s2.set_enable(true);
+            s3.set_enable(true);
+            self.inner.set_encoder_event_handler(move |timestamp, mask, values| {
+                cb(timestamp, mask, values);
+            });
+        }
+        self.inner.enable_encoder_event(Some(s1), Some(s2), Some(s3), move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
+    // MISC Functions
+    
+    pub fn write_twi(&mut self, address: u32, data: Vec<u8>) -> Result<()> {
+        let (tx, rx) = mpsc::channel::<()>();
+        self.inner.write_twi(address, data, move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
+    pub fn read_twi(&mut self, address: u32, recvsize: usize) -> Result<Vec<u8>> {
+        let (tx, rx) = mpsc::channel::<Vec<u8>>();
+        self.inner.read_twi(address, recvsize as u32, move |data| {
+            tx.send(data).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
+    pub fn write_read_twi(&mut self, address: u32, recvsize: usize, data: Vec<u8>) -> Result<Vec<u8>> {
+        let (tx, rx) = mpsc::channel::<Vec<u8>>();
+        self.inner.write_read_twi(address, recvsize as u32, data, move |data| {
+            tx.send(data).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
+    pub fn read_eeprom(&mut self, address: u32, size: usize) -> Result<Vec<u8>> {
+        let (tx, rx) = mpsc::channel::<Vec<u8>>();
+        self.inner.read_eeprom(address, size as u32, move |data| {
+            tx.send(data).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
+    pub fn write_eeprom(&mut self, address: u32, data: Vec<u8>) -> Result<()> {
+        let (tx, rx) = mpsc::channel::<()>();
+        self.inner.write_eeprom(address, data, move || {
             tx.send(()).unwrap();
         }).unwrap();
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )

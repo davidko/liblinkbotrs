@@ -1,5 +1,3 @@
-use std::mem;
-use std::ops;
 
 /// Convert Vec<Option<T>> into a bitmask of enabled fields.
 ///
@@ -25,7 +23,7 @@ pub fn vec_to_mask<T>(v: &Vec<Option<T>>) -> u8 {
 pub fn mask_to_vec(mask: u8) -> Vec<bool>
 {
     let mut bools:Vec<bool> = Vec::new();
-    for i in 0..mem::size_of::<u8>() {
+    for i in 0..8 {
         bools.push( mask&(1<<i) != 0 );
     }
     bools
