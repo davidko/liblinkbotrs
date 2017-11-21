@@ -97,6 +97,14 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
+    pub fn get_battery_voltage(&mut self) -> Result<lc::FormFactor, String> {
+        let (tx, rx) = mpsc::channel::<lc::FormFactor>();
+        self.inner.get_form_factor(move |f| {
+            tx.send(f).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
     pub fn get_firmware_version_string(&mut self) -> Result<String, String> {
         let (tx, rx) = mpsc::channel::<String>();
         self.inner.get_firmware_version_string(move |version| {
