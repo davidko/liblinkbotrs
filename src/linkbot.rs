@@ -520,6 +520,22 @@ impl Linkbot {
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
     }
 
+    pub fn read_eeprom(&mut self, address: u32, size: usize) -> Result<Vec<u8>> {
+        let (tx, rx) = mpsc::channel::<Vec<u8>>();
+        self.inner.read_eeprom(address, size as u32, move |data| {
+            tx.send(data).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
+    pub fn write_eeprom(&mut self, address: u32, data: Vec<u8>) -> Result<()> {
+        let (tx, rx) = mpsc::channel::<()>();
+        self.inner.write_eeprom(address, data, move || {
+            tx.send(()).unwrap();
+        }).unwrap();
+        rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )
+    }
+
     fn set_joints_moving(&mut self, mask: u8) {
         let pair = self.joints_moving.clone();
         let &(ref lock, _) = &*pair;
