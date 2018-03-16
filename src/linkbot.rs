@@ -474,21 +474,18 @@ impl Linkbot {
     pub fn enable_encoder_event(&mut self, handler: Option<Box<lc::EncoderEventHandler>> ) -> Result<()>
     {
         let (tx, rx) = mpsc::channel::<()>();
-        let mut s1 = lc::SignalState::new();
-        let mut s2 = lc::SignalState::new();
-        let mut s3 = lc::SignalState::new();
-        s1.set_enable(false);
-        s2.set_enable(false);
-        s3.set_enable(false);
+        let mut s1 = None;
+        let mut s2 = None;
+        let mut s3 = None;
         if let Some(mut cb) = handler {
-            s1.set_enable(true);
-            s2.set_enable(true);
-            s3.set_enable(true);
+            s1 = Some(2.0);
+            s2 = Some(2.0);
+            s3 = Some(2.0);
             self.inner.set_encoder_event_handler(move |timestamp, mask, values| {
                 cb(timestamp, mask, values);
             });
         }
-        self.inner.enable_encoder_event(Some(s1), Some(s2), Some(s3), move || {
+        self.inner.enable_encoder_event(s1, s2, s3, move || {
             tx.send(()).unwrap();
         }).unwrap();
         rx.recv_timeout(self.timeout).map_err(|e| { format!("{}", e) } )

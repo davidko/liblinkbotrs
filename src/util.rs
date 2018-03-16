@@ -4,7 +4,8 @@
 /// For instance, 
 /// 
 /// ```
-/// assert!(vec_to_mask(vec![Some(0), None, Some(1)]), 0x05)
+/// use liblinkbotrs::util::vec_to_mask;
+/// assert!(vec_to_mask(&vec![Some(0), None, Some(1)]) == 0x05)
 /// ```
 pub fn vec_to_mask<T>(v: &Vec<Option<T>>) -> u8 {
     let result = v.iter().fold((0, 0), |acc, item| {

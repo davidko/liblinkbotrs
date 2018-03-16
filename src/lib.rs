@@ -17,7 +17,7 @@ use ws::{Message};
 use ws::client::ClientBuilder;
 
 mod linkbot;
-mod util;
+pub mod util;
 
 pub use linkbot::{Linkbot};
 
