@@ -107,13 +107,15 @@ fn init_daemon(daemon: &Mutex<lc::DaemonProxy>) {
 
 #[no_mangle]
 pub extern fn linkbotFromSerialId(serial_id: *mut c_char) -> *mut Linkbot {
-    let robot = unsafe {
+    unsafe {
         let cstring = CString::from_raw(serial_id);
-        let robot = Linkbot::new(cstring.to_str().unwrap());
-        mem::forget(cstring);
-        robot
-    };
-    Box::into_raw( Box::new(robot) )
+        if let Ok(robot) = Linkbot::new(cstring.to_str().unwrap()) {
+            mem::forget(cstring);
+            Box::into_raw( Box::new(robot) )
+        } else {
+            std::ptr::null_mut()
+        }
+    }
 }
 
 #[no_mangle]
@@ -847,7 +849,7 @@ mod tests {
         if let Ok(n) = io::stdin().read_line(&mut input) {
             println!("Read serial-id, {} bytes: {}", n, input);
             input.truncate(4);
-            let mut l = Linkbot::new(input.as_str());
+            let mut l = Linkbot::new(input.as_str()).unwrap();
 
             println!("Moving to zero...");
             l.reset_to_zero().unwrap();

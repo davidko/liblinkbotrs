@@ -20,7 +20,7 @@ pub struct Linkbot {
 }
 
 impl Linkbot {
-    pub fn new(serial_id: &str) -> Linkbot {
+    pub fn new(serial_id: &str) -> Result<Linkbot> {
         let pair = Arc::new( ( Mutex::new(false), Condvar::new() ) );
         let pair2 = pair.clone();
         let global_daemon = &super::DAEMON;
@@ -57,7 +57,11 @@ impl Linkbot {
         let mut started = lock.lock().unwrap();
         info!("Waiting for robot connectEvent...");
         while !*started {
-            started = cvar.wait(started).unwrap();
+            let result = cvar.wait_timeout(started, robot.timeout).unwrap();
+            if result.1.timed_out() {
+                return Err(format!("Timed out trying to connect to robot: {}.", serial_id));
+            }
+            started = result.0;
         }
         info!("Waiting for robot connectEvent...done");
 
@@ -87,7 +91,7 @@ impl Linkbot {
             }
         }
 
-        robot
+        Ok(robot)
     }
 
     pub fn get_accelerometer_data(&mut self) -> Result<(f32, f32, f32)> {
