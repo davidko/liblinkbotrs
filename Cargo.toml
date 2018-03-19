@@ -11,6 +11,6 @@ websocket = "*"
 linkbot-core = { git = "https://github.com/davidko/linkbot-core" }
 colored_logger = "*"
 
-#[lib]
-#name = "linkbotrs"
-#crate-type = ["staticlib"]
+[lib]
+name = "linkbotrs"
+crate-type = ["staticlib"]
