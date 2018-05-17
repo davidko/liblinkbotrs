@@ -119,6 +119,15 @@ pub extern fn linkbotFromSerialId(serial_id: *mut c_char) -> *mut Linkbot {
 }
 
 #[no_mangle]
+pub extern fn linkbotAcquire() -> *mut Linkbot {
+    if let Ok(robot) = Linkbot::acquire() {
+        Box::into_raw( Box::new(robot) )
+    } else {
+        std::ptr::null_mut()
+    }
+}
+
+#[no_mangle]
 pub extern fn linkbotDelete(linkbot: *mut Linkbot) {
     let _ = unsafe {
         Box::from_raw(linkbot)
@@ -151,7 +160,7 @@ pub extern fn linkbotGetAccelerometer(linkbot: *mut Linkbot,
 }
 
 #[no_mangle]
-pub extern fn linkbotGetBatteryVoltage(linkbot: *mut Linkbot, voltage: *mut f64) -> i32
+pub extern fn linkbotGetBatteryVoltage(_linkbot: *mut Linkbot, _voltage: *mut f64) -> i32
 {
     unimplemented!();
 }
@@ -294,25 +303,25 @@ pub extern fn linkbotGetVersionString(linkbot: *mut Linkbot,
 }
 
 #[no_mangle]
-pub extern fn linkbotGetSerialId(linkbot: *mut Linkbot, 
-                                 serial_id: *mut c_char) -> i32
+pub extern fn linkbotGetSerialId(_linkbot: *mut Linkbot, 
+                                 _serial_id: *mut c_char) -> i32
 {
     unimplemented!();
 }
 
 #[no_mangle]
-pub extern fn linkbotGetJointSafetyThresholds(linkbot: *mut Linkbot, 
-                                              thresh1: *mut i32,
-                                              thresh2: *mut i32,
-                                              thresh3: *mut i32) -> i32
+pub extern fn linkbotGetJointSafetyThresholds(_linkbot: *mut Linkbot, 
+                                              _thresh1: *mut i32,
+                                              _thresh2: *mut i32,
+                                              _thresh3: *mut i32) -> i32
 {
     unimplemented!();
 }
 
-pub extern fn linkbotGetJointSafetyAngles(linkbot: *mut Linkbot, 
-                                          angle1: *mut f64,
-                                          angle2: *mut f64,
-                                          angle3: *mut f64) -> i32
+pub extern fn linkbotGetJointSafetyAngles(_linkbot: *mut Linkbot, 
+                                          _angle1: *mut f64,
+                                          _angle2: *mut f64,
+                                          _angle3: *mut f64) -> i32
 {
     unimplemented!();
 }
@@ -464,21 +473,21 @@ pub extern fn linkbotSetLedColor(linkbot: *mut Linkbot,
 }
 
 #[no_mangle]
-pub extern fn linkbotSetJointSafetyThresholds(linkbot: *mut Linkbot,
-                                              mask: i32,
-                                              t1: i32,
-                                              t2: i32,
-                                              t3: i32) -> i32
+pub extern fn linkbotSetJointSafetyThresholds(_linkbot: *mut Linkbot,
+                                              _mask: i32,
+                                              _t1: i32,
+                                              _t2: i32,
+                                              _t3: i32) -> i32
 {
     unimplemented!();
 }
 
 #[no_mangle]
-pub extern fn linkbotSetJointSafetyAngles(linkbot: *mut Linkbot,
-                                          mask: i32,
-                                          t1: f64,
-                                          t2: f64,
-                                          t3: f64) -> i32
+pub extern fn linkbotSetJointSafetyAngles(_linkbot: *mut Linkbot,
+                                          _mask: i32,
+                                          _t1: f64,
+                                          _t2: f64,
+                                          _t3: f64) -> i32
 {
     unimplemented!();
 }
@@ -562,14 +571,15 @@ pub extern fn linkbotMoveContinuous(linkbot: *mut Linkbot,
                                     d2: f64,
                                     d3: f64) -> i32
 {
-    let mut robot = unsafe {
+
+    let robot = unsafe {
         Box::from_raw(linkbot)
     };
 
     let ds = vec![d1, d2, d3];
 
     let rc:Vec<_> = ds.iter().zip( util::mask_to_vec(mask as u8)).enumerate().map(|tuple| -> Option<(JointStateCommand, f32, Option<f32>, Option<JointStateCommand>)> {
-        let (i, item) = tuple;
+        let (_i, item) = tuple;
         let (d, enable) = item;
         if enable {
             if *d != 0.0 {
@@ -582,6 +592,7 @@ pub extern fn linkbotMoveContinuous(linkbot: *mut Linkbot,
         }
     }).collect();
     
+    unimplemented!(); // FIXME, wip
     Box::into_raw(robot);
     0
 }
@@ -610,7 +621,7 @@ pub extern fn linkbotDrive(linkbot: *mut Linkbot,
     let angles = vec![angle1, angle2, angle3];
 
     let rc:Vec<_> = angles.iter().zip( util::mask_to_vec(mask as u8)).enumerate().map(|tuple| {
-        let (i, item) = tuple;
+        let (_i, item) = tuple;
         let (angle, enable) = item;
         if enable {
             let mut g = lc::Goal::new();
@@ -622,10 +633,13 @@ pub extern fn linkbotDrive(linkbot: *mut Linkbot,
             None
         }
     }).collect();
-    robot.move_goals(rc);
+    let rc = robot.move_goals(rc);
 
     Box::into_raw(robot);
-    0
+    match rc {
+        Ok(_) => 0,
+        _ => -1
+    }
 }
 
 #[no_mangle]
@@ -642,7 +656,7 @@ pub extern fn linkbotDriveTo(linkbot: *mut Linkbot,
     let angles = vec![angle1, angle2, angle3];
 
     let rc:Vec<_> = angles.iter().zip( util::mask_to_vec(mask as u8)).enumerate().map(|tuple| {
-        let (i, item) = tuple;
+        let (_i, item) = tuple;
         let (angle, enable) = item;
         if enable {
             let mut g = lc::Goal::new();
@@ -654,18 +668,21 @@ pub extern fn linkbotDriveTo(linkbot: *mut Linkbot,
             None
         }
     }).collect();
-    robot.move_goals(rc);
+    let rc = robot.move_goals(rc);
 
     Box::into_raw(robot);
-    0
+    match rc {
+        Ok(_) => 0,
+        _ => -1
+    }
 }
 
 #[no_mangle]
-pub extern fn linkbotMotorPower(linkbot: *mut Linkbot, 
-                                mask: i32,
-                                d1: i32,
-                                d2: i32,
-                                d3: i32) -> i32
+pub extern fn linkbotMotorPower(_linkbot: *mut Linkbot, 
+                                _mask: i32,
+                                _d1: i32,
+                                _d2: i32,
+                                _d3: i32) -> i32
 {
     unimplemented!();
 }
@@ -744,9 +761,9 @@ pub extern fn linkbotSetButtonEventCallback(linkbot: *mut Linkbot,
     if let Some(callback) = cb {
         robot.enable_button_event( Some( Box::new( move |timestamp, button, state| {
             callback(button as i32, state as i32, timestamp as i32,  user_data);
-        })));
+        }))).unwrap();
     } else {
-        robot.enable_button_event(None);
+        robot.enable_button_event(None).unwrap();
     }
 
     Box::into_raw(robot);
@@ -769,18 +786,18 @@ pub extern fn linkbotSetEncoderEventCallback(linkbot: *mut Linkbot,
                     callback(i as i32, (value*180.0/PI) as f64, timestamp as i32, user_data);
                 }
             }
-        })));
+        }))).unwrap();
     } else {
-        robot.enable_encoder_event(None);
+        robot.enable_encoder_event(None).unwrap();
     }
 
     Box::into_raw(robot);
 }
 
 #[no_mangle]
-pub extern fn linkbotSetJointEventCallback(linkbot: *mut Linkbot,
-                                           cb: Option<extern fn(i32, i32, i32, *mut c_void)>,
-                                           user_data: *mut c_void)
+pub extern fn linkbotSetJointEventCallback(_linkbot: *mut Linkbot,
+                                           _cb: Option<extern fn(i32, i32, i32, *mut c_void)>,
+                                           _user_data: *mut c_void)
 {
     unimplemented!();
 }
@@ -800,18 +817,18 @@ pub extern fn linkbotSetAccelerometerEventCallback(linkbot: *mut Linkbot,
     if let Some(callback) = cb {
         robot.enable_accelerometer_event( Some( Box::new( move |timestamp, x, y, z| {
             callback(x as f64, y as f64, z as f64, timestamp as i32, user_data);
-        })));
+        }))).unwrap();
     } else {
-        robot.enable_accelerometer_event(None);
+        robot.enable_accelerometer_event(None).unwrap();
     }
 
     Box::into_raw(robot);
 }
 
 #[no_mangle]
-pub extern fn linkbotSetConnectionTerminatedCallback(linkbot: *mut Linkbot,
-                                                     cb: Option<extern fn(i32, *mut c_void)>,
-                                                     user_data: *mut c_void)
+pub extern fn linkbotSetConnectionTerminatedCallback(_linkbot: *mut Linkbot,
+                                                     _cb: Option<extern fn(i32, *mut c_void)>,
+                                                     _user_data: *mut c_void)
 {
     unimplemented!();
 }
@@ -829,10 +846,13 @@ pub extern fn linkbotWriteTwi(linkbot: *mut Linkbot,
 
     let _data = unsafe { std::slice::from_raw_parts(data, datasize) };
     let v = _data.to_vec();
-    robot.write_twi(address, v);
+    let rc = robot.write_twi(address, v);
 
     Box::into_raw(robot);
-    0
+    match rc {
+        Ok(_) => 0,
+        _ => -1
+    }
 }
 
 

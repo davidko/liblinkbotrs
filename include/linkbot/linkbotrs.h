@@ -76,6 +76,7 @@ typedef struct Linkbot Linkbot;
 
 //Linkbot* linkbotFromTcpEndpoint(const char* host, const char* service);
 Linkbot* linkbotFromSerialId(const char* serialId);
+Linkbot* linkbotAcquire();
 void linkbotDelete(Linkbot* l);
 
 /* MISC */

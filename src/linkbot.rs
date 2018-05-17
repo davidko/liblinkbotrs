@@ -94,6 +94,31 @@ impl Linkbot {
         Ok(robot)
     }
 
+    pub fn acquire() -> Result<Linkbot> {
+        // Step 1: Get the serial ID of the first acquirable robot.
+        let serial_id_result = {
+            let global_daemon = &super::DAEMON;
+            match global_daemon.try_lock() {
+                Ok(mut daemon) => {
+                    let (tx, rx) = mpsc::channel::<Option<String>>();
+                    daemon.acquire_robot(move |maybe_string| {
+                        tx.send(maybe_string).unwrap();
+                    }).unwrap();
+                    rx.recv_timeout(Duration::from_millis(500))
+                },
+                _ => {
+                    panic!("Could not lock daemon!");
+                }
+            }
+        };
+
+        if let Ok(Some(serial_id)) = serial_id_result {
+            Linkbot::new(serial_id.as_str())
+        } else {
+            Err(format!("Could not acquire a Linkbot. Not enough robots in the Robot Manager?"))
+        }
+    }
+
     pub fn get_accelerometer_data(&mut self) -> Result<(f32, f32, f32)> {
         let (tx, rx) = mpsc::channel::<(f32, f32, f32)>();
         self.inner.get_accelerometer_data(move |x, y, z| {
@@ -178,7 +203,7 @@ impl Linkbot {
         self.inner.robot_move(_goals[0].clone(), _goals[1].clone(), _goals[2].clone(), cb)
     }
 
-    pub fn move_goals(&mut self, mut goals: Vec<Option<lc::Goal>> ) -> Result<()>
+    pub fn move_goals(&mut self, goals: Vec<Option<lc::Goal>> ) -> Result<()>
     {
         let (tx, rx) = mpsc::channel::<()>();
         self.move_goal(goals, move || {
@@ -194,8 +219,9 @@ impl Linkbot {
         //! Each "state" tuple is (relative, omega_0, timeout, endstate)
         let mut goals: Vec<Option<lc::Goal>> = Vec::new();
 
-        for (i, item) in states.iter().enumerate() {
-            let maybe_goal = if let &Some((relative, omega, timeout, endstate)) = item {
+        for (_i, item) in states.iter().enumerate() {
+            // FIXME : Should _endstate be used?
+            let maybe_goal = if let &Some((relative, omega, timeout, _endstate)) = item {
                 let mut goal = lc::Goal::new();
                 goal.set_field_type( 
                     if relative {
@@ -221,7 +247,7 @@ impl Linkbot {
     }
 
     pub fn move_motors(&mut self, angles: Vec< Option<f32> >) -> Result<()> {
-        let mut goals:Vec<_> = angles.iter().map( |maybe_angle| {
+        let goals:Vec<_> = angles.iter().map( |maybe_angle| {
             match *maybe_angle {
                 None => None,
                 Some(angle) => {
@@ -243,7 +269,7 @@ impl Linkbot {
     }
 
     pub fn move_motors_to(&mut self, angles: Vec< Option<f32> >) -> Result<()> {
-        let mut goals:Vec<_> = angles.iter().map( |maybe_angle| {
+        let goals:Vec<_> = angles.iter().map( |maybe_angle| {
             match *maybe_angle {
                 None => None,
                 Some(angle) => {
@@ -265,7 +291,7 @@ impl Linkbot {
     }
 
     pub fn move_smooth(&mut self, angles: Vec<Option<(bool, f32)>>) -> Result<()> {
-        let mut goals:Vec<_> = angles.iter().map( |maybe_tuple| {
+        let goals:Vec<_> = angles.iter().map( |maybe_tuple| {
             if let Some((relative, angle)) = *maybe_tuple {
                 let mut goal = lc::Goal::new();
                 goal.set_field_type( if relative { lc::Goal_Type::RELATIVE } else { lc::Goal_Type::ABSOLUTE } );
