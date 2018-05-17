@@ -319,6 +319,11 @@ impl Linkbot {
     pub fn move_wait(&mut self, mask: u8) -> Result<()> {
         //! The mask indicates which motors to wait for.
 
+        // Lets get the joint states first.
+        let (_, state1, state2, state3) = self.get_joint_states().unwrap();
+        if !vec![state1, state2, state3].contains(&lc::JointState::MOVING) {
+            return Ok(())
+        }
         let pair = self.joints_moving.clone();
         let &(ref lock, ref cvar) = &*pair;
         let mut joints_mask = lock.lock().unwrap();
