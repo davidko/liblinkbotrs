@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+extern crate env_logger;
 #[macro_use] extern crate lazy_static;
 extern crate linkbot_core as lc;
 #[macro_use] extern crate log;
@@ -43,6 +44,8 @@ lazy_static! {
 const DEFAULT_DAEMON_HOST: &'static str = "127.0.0.1:42000";
 
 fn init_daemon(daemon: &Mutex<lc::DaemonProxy>) {
+    // Lets go ahead and initialize the logger here
+    env_logger::init();
     // Create the websocket connection
     let mut uri = match env::var("LINKBOT_DAEMON_HOSTPORT") {
         Ok(address) => address,
