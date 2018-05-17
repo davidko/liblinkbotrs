@@ -101,21 +101,26 @@ impl Linkbot {
             match global_daemon.try_lock() {
                 Ok(mut daemon) => {
                     let (tx, rx) = mpsc::channel::<Option<String>>();
+                    debug!("Acquiring robot from daemon...");
                     daemon.acquire_robot(move |maybe_string| {
+                        debug!("Acquired robot: {:?}", maybe_string);
                         tx.send(maybe_string).unwrap();
                     }).unwrap();
-                    rx.recv_timeout(Duration::from_millis(500))
+                    drop(daemon);
+                    rx.recv_timeout(Duration::from_millis(1000))
                 },
                 _ => {
                     panic!("Could not lock daemon!");
                 }
             }
         };
-
-        if let Ok(Some(serial_id)) = serial_id_result {
-            Linkbot::new(serial_id.as_str())
-        } else {
-            Err(format!("Could not acquire a Linkbot. Not enough robots in the Robot Manager?"))
+        {
+            debug!("acquire result: {:?}", serial_id_result);
+            if let Ok(Some(serial_id)) = serial_id_result {
+                Linkbot::new(serial_id.as_str())
+            } else {
+                Err(format!("Could not acquire a Linkbot. Not enough robots in the Robot Manager?"))
+            }
         }
     }
 

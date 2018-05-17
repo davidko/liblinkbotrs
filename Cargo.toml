@@ -9,7 +9,7 @@ log = "*"
 websocket = "*"
 # linkbot-core = { path = "../linkbot-core" }
 linkbot-core = { git = "https://github.com/davidko/linkbot-core" }
-colored_logger = "*"
+env_logger = "*"
 
 #[lib]
 #name = "linkbotrs"

@@ -858,11 +858,11 @@ pub extern fn linkbotWriteTwi(linkbot: *mut Linkbot,
 
 #[cfg(test)]
 mod tests {
-    extern crate colored_logger;
+    extern crate env_logger;
     use super::Linkbot;
     #[test]
     fn it_works() {
-        colored_logger::init().unwrap();
+        env_logger::init();
         use std::io;
         let mut input = String::new();
         println!("Enter a robot's serial ID: ");
@@ -870,72 +870,85 @@ mod tests {
             println!("Read serial-id, {} bytes: {}", n, input);
             input.truncate(4);
             let mut l = Linkbot::new(input.as_str()).unwrap();
-
-            println!("Moving to zero...");
-            l.reset_to_zero().unwrap();
-            l.move_wait(0x07).unwrap();
-
-            println!("Getting accelerometer data...");
-            let acceldata = l.get_accelerometer_data().unwrap();
-            println!("Accel data: {} {} {}", acceldata.0, acceldata.1, acceldata.2);
-            
-            println!("Setting LED color...");
-            l.set_led_color(255, 255, 255).unwrap();
-
-            println!("Setting robot button handler. Press 'Enter' to continue.");
-            let button_handler = |timestamp, button, state| {
-                println!("Button press! {}, {}, {}", timestamp, button, state);
-            };
-            l.enable_button_event(Some( Box::new( button_handler ) ) ).unwrap();
-            io::stdin().read_line(&mut input);
-            l.enable_button_event(None).unwrap();
-
-            l.stop(0x07).unwrap();
-            println!("Setting robot encoder event handler. Press 'Enter' to continue.");
-            let event_handler = |timestamp, mask, values: Vec<f32>| {
-                println!("Encoder event! time: {}, mask: {}, values: {} {} {}",
-                         timestamp, mask, values[0], values[1], values[2]);
-            };
-            l.enable_encoder_event(Some( Box::new( event_handler ) ) ).unwrap();
-            io::stdin().read_line(&mut input);
-            l.enable_encoder_event(None).unwrap();
-
-            println!("Testing motors and buzzer. Moving motors 1, 2, and 3 90, 180, and 360 degrees, respectively...");
-            l.set_buzzer_frequency(440.0);
-            l.set_joint_speeds(0x07, 90.0, 90.0, 90.0).unwrap();
-            l.move_motors(vec![90.0, 180.0, 360.0].iter().map(|x| Some(*x)).collect()).unwrap();
-            l.move_wait(0x07).unwrap();
-            l.set_buzzer_frequency(0.0);
-            println!("Test complete.");
-
-            println!("Getting joint angles:");
-            if let Ok(angles) = l.get_joint_angles() {
-                println!("{} {} {}", angles.0, angles.1, angles.2);
-            } else {
-                panic!("Could not get joint angles.");
-            }
-
-            println!("Getting LED color:");
-            if let Ok(color) = l.get_led_color() {
-                println!("{} {} {}", color.0, color.1, color.2);
-            } else {
-                panic!("Could not get led color."); 
-            }
-
-            println!("Getting joint speeds:");
-            if let Ok(speeds) = l.get_joint_speeds() {
-                println!("{} {} {}", speeds.0, speeds.1, speeds.2);
-            } else {
-                panic!("Could not get joint speeds.");
-            }
-
-            println!("Setting joint speeds to 180...");
-            l.set_joint_speeds(0x07, 180.0, 180.0, 180.0).unwrap();
-            l.move_motors(vec![180.0, 180.0, 180.0].iter().map(|x| Some(*x)).collect()).unwrap();
-            l.move_wait(0x07).unwrap();
-            l.set_joint_speeds(0x07, 90.0, 90.0, 90.0).unwrap();
-            l.stop(0x07).unwrap();
+            test_linkbot(&mut l);
         }
-        
     }
+
+    #[test]
+    fn test_acquire() {
+        env_logger::init();
+        let mut l = Linkbot::acquire().unwrap();
+        test_linkbot(&mut l);
+    }
+
+    fn test_linkbot(l: &mut Linkbot) {
+        use std::io;
+        let mut input = String::new();
+        println!("Moving to zero...");
+        l.reset_to_zero().unwrap();
+        l.move_wait(0x07).unwrap();
+
+        println!("Getting accelerometer data...");
+        let acceldata = l.get_accelerometer_data().unwrap();
+        println!("Accel data: {} {} {}", acceldata.0, acceldata.1, acceldata.2);
+
+        println!("Setting LED color...");
+        l.set_led_color(255, 255, 255).unwrap();
+
+        println!("Setting robot button handler. Press 'Enter' to continue.");
+        let button_handler = |timestamp, button, state| {
+            println!("Button press! {}, {}, {}", timestamp, button, state);
+        };
+        l.enable_button_event(Some( Box::new( button_handler ) ) ).unwrap();
+        io::stdin().read_line(&mut input);
+        l.enable_button_event(None).unwrap();
+
+        l.stop(0x07).unwrap();
+        println!("Setting robot encoder event handler. Press 'Enter' to continue.");
+        let event_handler = |timestamp, mask, values: Vec<f32>| {
+            println!("Encoder event! time: {}, mask: {}, values: {} {} {}",
+                     timestamp, mask, values[0], values[1], values[2]);
+        };
+        l.enable_encoder_event(Some( Box::new( event_handler ) ) ).unwrap();
+        io::stdin().read_line(&mut input);
+        l.enable_encoder_event(None).unwrap();
+
+        println!("Testing motors and buzzer. Moving motors 1, 2, and 3 90, 180, and 360 degrees, respectively...");
+        l.set_buzzer_frequency(440.0);
+        l.set_joint_speeds(0x07, 90.0, 90.0, 90.0).unwrap();
+        l.move_motors(vec![90.0, 180.0, 360.0].iter().map(|x| Some(*x)).collect()).unwrap();
+        l.move_wait(0x07).unwrap();
+        l.set_buzzer_frequency(0.0);
+        println!("Test complete.");
+
+        println!("Getting joint angles:");
+        if let Ok(angles) = l.get_joint_angles() {
+            println!("{} {} {}", angles.0, angles.1, angles.2);
+        } else {
+            panic!("Could not get joint angles.");
+        }
+
+        println!("Getting LED color:");
+        if let Ok(color) = l.get_led_color() {
+            println!("{} {} {}", color.0, color.1, color.2);
+        } else {
+            panic!("Could not get led color."); 
+        }
+
+        println!("Getting joint speeds:");
+        if let Ok(speeds) = l.get_joint_speeds() {
+            println!("{} {} {}", speeds.0, speeds.1, speeds.2);
+        } else {
+            panic!("Could not get joint speeds.");
+        }
+
+        println!("Setting joint speeds to 180...");
+        l.set_joint_speeds(0x07, 180.0, 180.0, 180.0).unwrap();
+        l.move_motors(vec![180.0, 180.0, 180.0].iter().map(|x| Some(*x)).collect()).unwrap();
+        l.move_wait(0x07).unwrap();
+        l.set_joint_speeds(0x07, 90.0, 90.0, 90.0).unwrap();
+        l.stop(0x07).unwrap();
+    }
+
+
 }
