@@ -860,6 +860,122 @@ pub extern fn linkbotWriteTwi(linkbot: *mut Linkbot,
     }
 }
 
+// Arduino Functions
+
+pub extern fn linkbotArduinoAnalogWrite(linkbot: *mut Linkbot,
+                                        pin: u8,
+                                        value: u8) -> i32
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    use arduino::ArduinoLinkbot;
+    let mut rc = 0;
+    if let Err(e) = robot.analog_write(pin, value) {
+        println!("Warning: Arduino Analog Write failed: {:?}", e);
+        rc = -1;
+    }
+    Box::into_raw(robot);
+    rc
+}
+
+pub extern fn linkbotArduinoAnalogRead(linkbot: *mut Linkbot,
+                                        pin: u8,
+                                        value: *mut u16) -> i32
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    use arduino::ArduinoLinkbot;
+    let rc = match robot.analog_read(pin) {
+        Ok(data) => {
+            unsafe { *value = data; }
+            0
+        },
+        Err(e) => {
+            println!("Warning: Arduino Analog Read failed: {:?}", e);
+            -1
+        }
+    };
+    Box::into_raw(robot);
+    rc
+}
+
+pub extern fn linkbotArduinoDigitalWrite(linkbot: *mut Linkbot,
+                                         pin: u8,
+                                         value: u8) -> i32
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    use arduino::ArduinoLinkbot;
+    let rc = match robot.digital_write(pin, value) {
+        Ok(_) => 0,
+        Err(e) => {
+            println!("Warning: Arduino Analog Read failed: {:?}", e);
+            -1
+        }
+    };
+    Box::into_raw(robot);
+    rc
+}
+
+pub extern fn linkbotArduinoDigitalRead(linkbot: *mut Linkbot,
+                                        pin: u8,
+                                        value: *mut u8) -> i32
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    use arduino::ArduinoLinkbot;
+    let rc = match robot.digital_read(pin) {
+        Ok(data) => {
+            unsafe { *value = data; }
+            0
+        },
+        Err(e) => {
+            println!("Warning: Arduino Analog Read failed: {:?}", e);
+            -1
+        }
+    };
+    Box::into_raw(robot);
+    rc
+}
+
+/// Set the Arduino pin mode. Modes are:
+/// 0: input
+/// 1: output
+/// 2: input with pullup
+pub extern fn linkbotArduinoPinMode(linkbot: *mut Linkbot,
+                                    pin: u8,
+                                    value: u8) -> i32
+{
+    let mut robot = unsafe {
+        Box::from_raw(linkbot)
+    };
+
+    use arduino::ArduinoLinkbot;
+    let pin_mode = match arduino::pin_mode_from_u8(value) {
+        Ok(m) => m,
+        Err(e) => {
+            println!("Could not set pin mode: {:?}", e);
+            return -1;
+        }
+    };
+    let rc = match robot.set_pin_mode(pin, pin_mode) {
+        Ok(_) => 0,
+        Err(e) => {
+            println!("Warning: Arduino Analog Read failed: {:?}", e);
+            -1
+        }
+    };
+    Box::into_raw(robot);
+    rc
+}
 
 #[cfg(test)]
 mod tests {
