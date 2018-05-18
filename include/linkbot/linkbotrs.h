@@ -155,6 +155,13 @@ LINKBOT_DECL_EVENT_CALLBACK(AccelerometerEventCallback, void* userData);
 LINKBOT_DECL_EVENT_CALLBACK(ConnectionTerminatedCallback, void* userData);
 #undef LINKBOT_DECL_EVENT_CALLBACK
 
+/* ARDUINO */
+int linkbotArduinoAnalogWrite(Linkbot*, uint8_t pin, uint8_t value);
+int linkbotArduinoAnalogRead(Linkbot*, uint8_t pin, uint16_t *value);
+int linkbotArduinoDigitalWrite(Linkbot*, uint8_t pin, uint8_t value);
+int linkbotArduinoDigitalRead(Linkbot*, uint8_t pin, uint8_t *value);
+int linkbotArduinoSetPinMode(Linkbot*, uint8_t pin, uint8_t mode);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

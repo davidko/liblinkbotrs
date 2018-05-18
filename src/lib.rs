@@ -950,9 +950,9 @@ pub extern fn linkbotArduinoDigitalRead(linkbot: *mut Linkbot,
 /// 0: input
 /// 1: output
 /// 2: input with pullup
-pub extern fn linkbotArduinoPinMode(linkbot: *mut Linkbot,
-                                    pin: u8,
-                                    value: u8) -> i32
+pub extern fn linkbotArduinoSetPinMode(linkbot: *mut Linkbot,
+                                       pin: u8,
+                                       value: u8) -> i32
 {
     let mut robot = unsafe {
         Box::from_raw(linkbot)
