@@ -19,8 +19,10 @@ use ws::client::ClientBuilder;
 
 mod linkbot;
 pub mod util;
+pub mod arduino;
 
 pub use linkbot::{Linkbot};
+pub use arduino::ArduinoLinkbot;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -188,7 +190,7 @@ pub extern fn linkbotGetFormFactor(linkbot: *mut Linkbot, form: *mut i32) -> i32
 
 #[no_mangle]
 pub extern fn linkbotGetJointAngles(linkbot: *mut Linkbot, 
-                                    timestamp: *mut i32,
+                                    _timestamp: *mut i32, // FIXME
                                     angle1: *mut f64,
                                     angle2: *mut f64,
                                     angle3: *mut f64) -> i32
@@ -575,13 +577,13 @@ pub extern fn linkbotMoveContinuous(linkbot: *mut Linkbot,
                                     d3: f64) -> i32
 {
 
-    let robot = unsafe {
+    let _robot = unsafe {
         Box::from_raw(linkbot)
     };
 
     let ds = vec![d1, d2, d3];
 
-    let rc:Vec<_> = ds.iter().zip( util::mask_to_vec(mask as u8)).enumerate().map(|tuple| -> Option<(JointStateCommand, f32, Option<f32>, Option<JointStateCommand>)> {
+    let _rc:Vec<_> = ds.iter().zip( util::mask_to_vec(mask as u8)).enumerate().map(|tuple| -> Option<(JointStateCommand, f32, Option<f32>, Option<JointStateCommand>)> {
         let (_i, item) = tuple;
         let (d, enable) = item;
         if enable {
@@ -596,8 +598,8 @@ pub extern fn linkbotMoveContinuous(linkbot: *mut Linkbot,
     }).collect();
     
     unimplemented!(); // FIXME, wip
-    Box::into_raw(robot);
-    0
+    // Box::into_raw(robot);
+    // 0
 }
 
 #[no_mangle]
