@@ -19,6 +19,10 @@ pub struct Linkbot {
     motor_mask: u8, // 0x05 for Linkbot-I, 0x03 for Linkbot-L
 }
 
+// This is a synchronous implementation of Linkbot functions. linkbot_core implements an
+// asynchronous Linkbot API in which a completion callback is called when responses are received
+// from the remote Linkbot. In most of the functions in this implementation, we use a
+// mpsc::channel to make the member function synchronous.
 impl Linkbot {
     pub fn new(serial_id: &str) -> Result<Linkbot> {
         let pair = Arc::new( ( Mutex::new(false), Condvar::new() ) );

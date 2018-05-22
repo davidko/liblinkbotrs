@@ -35,6 +35,8 @@ pub enum JointStateCommand {
     Power
 }
 
+// This is our daemon singleton. See:
+// https://stackoverflow.com/questions/27791532/how-do-i-create-a-global-mutable-singleton?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
 lazy_static! {
     static ref DAEMON: Mutex<lc::DaemonProxy> = {
         let d = Mutex::new(lc::DaemonProxy::new());
@@ -110,6 +112,7 @@ fn init_daemon(daemon: &Mutex<lc::DaemonProxy>) {
     });
 }
 
+/// Initialize a linkbot object from the Linkbot's Serial ID. Returns null on error.
 #[no_mangle]
 pub extern fn linkbotFromSerialId(serial_id: *mut c_char) -> *mut Linkbot {
     unsafe {
@@ -123,6 +126,7 @@ pub extern fn linkbotFromSerialId(serial_id: *mut c_char) -> *mut Linkbot {
     }
 }
 
+/// Acquire a Linkbot from a connected robot manager.
 #[no_mangle]
 pub extern fn linkbotAcquire() -> *mut Linkbot {
     if let Ok(robot) = Linkbot::acquire() {
@@ -132,6 +136,7 @@ pub extern fn linkbotAcquire() -> *mut Linkbot {
     }
 }
 
+/// Free a linkbot object acquired via linkbotFromSerialId() or linkbotAcquire()
 #[no_mangle]
 pub extern fn linkbotDelete(linkbot: *mut Linkbot) {
     let _ = unsafe {
