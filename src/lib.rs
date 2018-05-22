@@ -861,7 +861,7 @@ pub extern fn linkbotWriteTwi(linkbot: *mut Linkbot,
 }
 
 // Arduino Functions
-
+#[no_mangle]
 pub extern fn linkbotArduinoAnalogWrite(linkbot: *mut Linkbot,
                                         pin: u8,
                                         value: u8) -> i32
@@ -880,6 +880,7 @@ pub extern fn linkbotArduinoAnalogWrite(linkbot: *mut Linkbot,
     rc
 }
 
+#[no_mangle]
 pub extern fn linkbotArduinoAnalogRead(linkbot: *mut Linkbot,
                                         pin: u8,
                                         value: *mut u16) -> i32
@@ -903,6 +904,7 @@ pub extern fn linkbotArduinoAnalogRead(linkbot: *mut Linkbot,
     rc
 }
 
+#[no_mangle]
 pub extern fn linkbotArduinoDigitalWrite(linkbot: *mut Linkbot,
                                          pin: u8,
                                          value: u8) -> i32
@@ -923,6 +925,7 @@ pub extern fn linkbotArduinoDigitalWrite(linkbot: *mut Linkbot,
     rc
 }
 
+#[no_mangle]
 pub extern fn linkbotArduinoDigitalRead(linkbot: *mut Linkbot,
                                         pin: u8,
                                         value: *mut u8) -> i32
@@ -950,6 +953,7 @@ pub extern fn linkbotArduinoDigitalRead(linkbot: *mut Linkbot,
 /// 0: input
 /// 1: output
 /// 2: input with pullup
+#[no_mangle]
 pub extern fn linkbotArduinoSetPinMode(linkbot: *mut Linkbot,
                                        pin: u8,
                                        value: u8) -> i32
