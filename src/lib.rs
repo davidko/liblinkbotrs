@@ -582,29 +582,36 @@ pub extern fn linkbotMoveContinuous(linkbot: *mut Linkbot,
                                     d3: f64) -> i32
 {
 
-    let _robot = unsafe {
+    let mut robot = unsafe {
         Box::from_raw(linkbot)
     };
 
     let ds = vec![d1, d2, d3];
 
-    let _rc:Vec<_> = ds.iter().zip( util::mask_to_vec(mask as u8)).enumerate().map(|tuple| -> Option<(JointStateCommand, f32, Option<f32>, Option<JointStateCommand>)> {
+    let rc:Vec<_> = ds.iter().zip( util::mask_to_vec(mask as u8)).enumerate().map(|tuple| {
         let (_i, item) = tuple;
         let (d, enable) = item;
         if enable {
+            let mut g = lc::Goal::new();
             if *d != 0.0 {
-                Some((JointStateCommand::Moving, *d as f32, None, None))
+                g.set_field_type(lc::Goal_Type::INFINITE);
+                g.set_controller(lc::Goal_Controller::CONSTVEL);
+                g.set_goal(*d as f32);
+                Some(g)
             } else {
-                Some((JointStateCommand::Hold, *d as f32, None, None))
+                None
             }
         } else {
             None
         }
     }).collect();
-    
-    unimplemented!(); // FIXME, wip
-    // Box::into_raw(robot);
-    // 0
+   
+    let rc = robot.move_goals(rc);
+    Box::into_raw(robot);
+    match rc {
+        Ok(_) => 0,
+        _ => -1
+    }
 }
 
 #[no_mangle]
