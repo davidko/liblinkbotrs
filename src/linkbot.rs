@@ -28,31 +28,28 @@ impl Linkbot {
         let pair = Arc::new( ( Mutex::new(false), Condvar::new() ) );
         let pair2 = pair.clone();
         let global_daemon = &super::DAEMON;
-        let mut robot = match global_daemon.try_lock() {
-            Ok(mut daemon) => {
-                let mut inner = daemon.get_robot(serial_id);
-                info!("Setting connect event handler...");
-                inner.set_connect_event_handler(move |_| {
-                    info!("Robot connect event handler.");
-                    let &(ref lock, ref cvar) = &*pair2;
-                    let mut started = lock.lock().unwrap();
-                    *started = true;
-                    info!("Robot connect event handler notifying condvar...");
-                    cvar.notify_all();
-                });
-                info!("Setting connect event handler...done");
-                // Send the connect signal
-                info!("Sending connect signal...");
-                daemon.connect_robot(serial_id).unwrap();
-                info!("Sending connect signal...done");
-                Linkbot{ inner: inner,
-                         timeout: Duration::from_secs(8),
-                         joints_moving: Arc::new( ( Mutex::new(0), Condvar::new() ) ),
-                         motor_mask: 0,
-                }
-            }
-            _ => {
-                panic!("Could not lock daemon!");
+
+        let mut robot = {
+            let mut daemon = global_daemon.lock().unwrap();
+            let mut inner = daemon.get_robot(serial_id);
+            info!("Setting connect event handler...");
+            inner.set_connect_event_handler(move |_| {
+                info!("Robot connect event handler.");
+                let &(ref lock, ref cvar) = &*pair2;
+                let mut started = lock.lock().unwrap();
+                *started = true;
+                info!("Robot connect event handler notifying condvar...");
+                cvar.notify_all();
+            });
+            info!("Setting connect event handler...done");
+            // Send the connect signal
+            info!("Sending connect signal...");
+            daemon.connect_robot(serial_id).unwrap();
+            info!("Sending connect signal...done");
+            Linkbot{ inner: inner,
+                     timeout: Duration::from_secs(8),
+                     joints_moving: Arc::new( ( Mutex::new(0), Condvar::new() ) ),
+                     motor_mask: 0,
             }
         };
 
@@ -100,23 +97,18 @@ impl Linkbot {
 
     pub fn acquire() -> Result<Linkbot> {
         // Step 1: Get the serial ID of the first acquirable robot.
+
         let serial_id_result = {
             let global_daemon = &super::DAEMON;
-            match global_daemon.try_lock() {
-                Ok(mut daemon) => {
-                    let (tx, rx) = mpsc::channel::<Option<String>>();
-                    debug!("Acquiring robot from daemon...");
-                    daemon.acquire_robot(move |maybe_string| {
-                        debug!("Acquired robot: {:?}", maybe_string);
-                        tx.send(maybe_string).unwrap();
-                    }).unwrap();
-                    drop(daemon);
-                    rx.recv_timeout(Duration::from_millis(1000))
-                },
-                _ => {
-                    panic!("Could not lock daemon!");
-                }
-            }
+            let mut daemon = global_daemon.lock().unwrap();
+            let (tx, rx) = mpsc::channel::<Option<String>>();
+            debug!("Acquiring robot from daemon...");
+            daemon.acquire_robot(move |maybe_string| {
+                debug!("Acquired robot: {:?}", maybe_string);
+                tx.send(maybe_string).unwrap();
+            }).unwrap();
+            drop(daemon);
+            rx.recv_timeout(Duration::from_millis(1000))
         };
         {
             debug!("acquire result: {:?}", serial_id_result);
